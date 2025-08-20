@@ -1,0 +1,95 @@
+version: "3.9"
+
+services:
+  # --- Postgres (как у тебя) ---
+  db:
+    image: postgres:15
+    container_name: postgres-js-db
+    restart: always
+    environment:
+      POSTGRES_DB: flaskdb
+      POSTGRES_USER: samlion
+      POSTGRES_PASSWORD: 333693
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U samlion -d flaskdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # --- Adminer (по желанию) ---
+  adminer:
+    image: adminer
+    container_name: adminer-js
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+  # --- Redis (кэш, presence, adapter для Socket.IO) ---
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # --- Zookeeper + Kafka (для событий) ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # --- NestJS API (реалтайм + HTTP). Подключим, когда положим код и Dockerfile ---
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: nest-api
+    env_file:
+      - ../.env
+    depends_on:
+      - db
+      - redis
+      - kafka
+    ports:
+      - "3000:3000"
+    # Для разработки с автоперезапуском (optional). Оставь, если хочешь править код с хоста:
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    command: ["npm","run","start:dev"]
+
+volumes:
+  postgres_data:

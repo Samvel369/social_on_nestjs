@@ -1,0 +1,139 @@
+// ---------- источники/генераторы ----------
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- модели ----------
+
+// users
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  email        String    @unique
+  password     String
+  lastActive   DateTime  @default(now())
+  avatarUrl    String    @default("/app/static/uploads/default-avatar.png")
+  birthdate    DateTime?                  // В SQLAlchemy был Date; в Prisma используем DateTime
+  status       String    @default("Приветствую всех!")
+  about        String    @default("Пока ничего о себе не рассказал.")
+
+  // relations
+  actions      Action[]
+  marks        ActionMark[]
+
+  // ignored users (двунаправленная many-to-many через join-таблицу)
+  ignored      IgnoredUser[] @relation("ignorer") // кого я игнорю
+  ignoredBy    IgnoredUser[] @relation("ignored") // кем я игнорюсь
+
+  // friend requests
+  sentRequests     FriendRequest[] @relation("sender")
+  receivedRequests FriendRequest[] @relation("receiver")
+
+  // subscribers/followers
+  subscribers      Subscriber[]    @relation("owner")
+  subscriptions    Subscriber[]    @relation("subscriber")
+
+  // potential views
+  potentialViews   PotentialFriendView[] @relation("viewer")
+  viewedBy         PotentialFriendView[] @relation("viewedUser")
+}
+
+// actions
+model Action {
+  id             Int       @id @default(autoincrement())
+  userId         Int?
+  text           String    @db.VarChar(255)
+  isPublished    Boolean   @default(false)
+  isDaily        Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime?
+  normalizedText String    @default("") @db.VarChar(512)
+
+  user           User?     @relation(fields: [userId], references: [id])
+  marks          ActionMark[]
+
+  @@index([normalizedText])
+}
+
+// marks (лайки/отметки действий)
+model ActionMark {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  actionId  Int
+  timestamp DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  action Action @relation(fields: [actionId], references: [id])
+
+  @@index([userId])
+  @@index([actionId])
+}
+
+// заявки в друзья
+model FriendRequest {
+  id         Int                  @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  timestamp  DateTime             @default(now())
+  status     FriendRequestStatus  @default(PENDING)
+
+  sender   User @relation("sender",   fields: [senderId],   references: [id])
+  receiver User @relation("receiver", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+// подписки/подписчики (followers)
+model Subscriber {
+  id           Int   @id @default(autoincrement())
+  subscriberId Int
+  ownerId      Int
+
+  subscriber User @relation("subscriber", fields: [subscriberId], references: [id])
+  owner      User @relation("owner",      fields: [ownerId],      references: [id])
+
+  @@unique([subscriberId, ownerId])      // один раз на одного owner’а
+  @@index([subscriberId])
+  @@index([ownerId])
+}
+
+// просмотр карточек «возможных друзей»
+model PotentialFriendView {
+  id        Int      @id @default(autoincrement())
+  viewerId  Int
+  userId    Int
+  timestamp DateTime @default(now())
+
+  viewer User @relation("viewer",     fields: [viewerId], references: [id])
+  user   User @relation("viewedUser", fields: [userId],  references: [id])
+
+  @@index([viewerId])
+  @@index([userId])
+}
+
+// join-таблица для ignored_users (кто кого игнорит)
+model IgnoredUser {
+  // можно сделать составной первичный ключ:
+  ignorerId Int
+  ignoredId Int
+
+  ignorer User @relation("ignorer", fields: [ignorerId], references: [id])
+  ignored User @relation("ignored", fields: [ignoredId], references: [id])
+
+  @@id([ignorerId, ignoredId])
+  @@index([ignorerId])
+  @@index([ignoredId])
+}
+
+// статусы заявок в друзья
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
