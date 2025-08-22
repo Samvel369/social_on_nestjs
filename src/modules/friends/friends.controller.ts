@@ -2,6 +2,9 @@ import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { FriendsService } from './friends.service';
 import { CancelFriendDto, CleanupTimeDto } from './friends.dto';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt.guard';                // путь подстрой
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 function getUser(req: Request) {
   const xid = req.headers['x-user-id'];

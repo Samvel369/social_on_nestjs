@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
+import { FriendRequestStatus } from '@prisma/client';
 
 type FriendStatus = 'pending' | 'accepted';
 
@@ -15,7 +16,7 @@ export class FriendsService {
   private async areFriends(a: number, b: number) {
     const fr = await this.prisma.friendRequest.findFirst({
       where: {
-        status: 'accepted',
+        status: FriendRequestStatus.ACCEPTED,
         OR: [
           { senderId: a, receiverId: b },
           { senderId: b, receiverId: a },
@@ -34,19 +35,19 @@ export class FriendsService {
   async friendsPage(userId: number, minutesFromSession = 10) {
     // принятые друзья (accepted в обе стороны)
     const friendsAccepted = await this.prisma.friendRequest.findMany({
-      where: { status: 'accepted', OR: [{ senderId: userId }, { receiverId: userId }] },
+      where: { status: FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
       include: { sender: true, receiver: true },
     });
     const friends = friendsAccepted.map(fr => fr.senderId === userId ? fr.receiver : fr.sender);
 
     // входящие/исходящие pending
     const incomingRequests = await this.prisma.friendRequest.findMany({
-      where: { receiverId: userId, status: 'pending' },
+      where: { receiverId: userId, status: FriendRequestStatus.PENDING },
       orderBy: { id: 'desc' },
       include: { sender: true },
     });
     const outgoingRequests = await this.prisma.friendRequest.findMany({
-      where: { senderId: userId, status: 'pending' },
+      where: { senderId: userId, status: FriendRequestStatus.PENDING },
       orderBy: { id: 'desc' },
       include: { receiver: true },
     });
@@ -64,14 +65,14 @@ export class FriendsService {
       markedUserIds = marks.map(m => m.userId);
     }
 
-    // подписчики (у кого ownerId = userId)
+    // КТО на меня подписан (список пользователей-подписчиков):
     const subscribers = await this.prisma.user.findMany({
-      where: { subscribers: { some: { ownerId: userId } } },
+      where: { subscriptions: { some: { ownerId: userId } } }, // пользователь U подписан на меня, если у U есть запись subscriptions с ownerId = me
     });
 
-    // мои подписки
+    // НА КОГО я подписан (список пользователей, на кого подписался я):
     const subscriptions = await this.prisma.user.findMany({
-      where: { owners: { some: { subscriberId: userId } } },
+      where: { subscribers: { some: { subscriberId: userId } } }, // пользователь T входит в мои подписки, если у T есть запись subscribers с subscriberId = me
     });
 
     // исключения (сам, заявки, друзья, подписчики)
@@ -107,15 +108,15 @@ export class FriendsService {
   // ===== partials =====
   private async _collectFriendsPageData(userId: number) {
     const incoming = await this.prisma.friendRequest.findMany({
-      where: { receiverId: userId, status: 'pending' },
+      where: { receiverId: userId, status: FriendRequestStatus.PENDING },
       orderBy: { id: 'desc' },
     });
     const outgoing = await this.prisma.friendRequest.findMany({
-      where: { senderId: userId, status: 'pending' },
+      where: { senderId: userId, status: FriendRequestStatus.PENDING },
       orderBy: { id: 'desc' },
     });
     const accepted = await this.prisma.friendRequest.findMany({
-      where: { status: 'accepted', OR: [{ senderId: userId }, { receiverId: userId }] },
+      where: { status: FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
     });
     const friendIds = accepted.map(fr => fr.senderId === userId ? fr.receiverId : fr.senderId);
     const friends = friendIds.length
@@ -126,7 +127,7 @@ export class FriendsService {
       where: { subscribers: { some: { ownerId: userId } } },
     });
     const subscriptions = await this.prisma.user.findMany({
-      where: { owners: { some: { subscriberId: userId } } },
+      where: { subscribers: { some: { subscriberId: userId } } },
     });
 
     return { incoming, outgoing, friends, subscribers, subscriptions };
@@ -165,7 +166,7 @@ export class FriendsService {
     // есть PENDING в любом направлении?
     const pending = await this.prisma.friendRequest.findFirst({
       where: {
-        status: 'pending',
+        status: FriendRequestStatus.PENDING,
         OR: [
           { senderId: me, receiverId: targetId },
           { senderId: targetId, receiverId: me },
@@ -178,7 +179,7 @@ export class FriendsService {
 
     // создать PENDING
     const fr = await this.prisma.friendRequest.create({
-      data: { senderId: me, receiverId: targetId, status: 'pending' as FriendStatus },
+      data: { senderId: me, receiverId: targetId, status: FriendRequestStatus.PENDING },
     });
 
     // убрать возможного друга из списка отправителя
@@ -247,11 +248,11 @@ export class FriendsService {
     const fr = await this.prisma.friendRequest.findUnique({ where: { id: requestId } });
     if (!fr) throw new BadRequestException('Заявка не найдена');
     if (fr.receiverId !== me) throw new ForbiddenException();
-    if (fr.status !== 'pending') return { ok: true, message: 'Уже обработано' };
+    if (fr.status !== FriendRequestStatus.PENDING) return { ok: true, message: 'Уже обработано' };
 
     await this.prisma.friendRequest.update({
       where: { id: fr.id },
-      data: { status: 'accepted' },
+      data: { status: FriendRequestStatus.ACCEPTED },
     });
 
     // удалить подписки в обе стороны
@@ -289,7 +290,7 @@ export class FriendsService {
   async removeFriend(targetId: number, me: number) {
     const fr = await this.prisma.friendRequest.findFirst({
       where: {
-        status: 'accepted',
+        status: FriendRequestStatus.ACCEPTED,
         OR: [
           { senderId: me, receiverId: targetId },
           { senderId: targetId, receiverId: me },

@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Param, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { ActionsService } from './actions.service';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt.guard';                // путь подстрой
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('actions')
 export class ActionsController {
@@ -13,6 +16,7 @@ export class ActionsController {
   }
 
   // POST /api/actions/mark_action/:id
+  @UseGuards(JwtAuthGuard)
   @Post('mark_action/:id')
   mark(@Param('id') id: string, @Req() req: Request) {
     // userId: из заголовка X-User-Id → из req.user → fallback 1

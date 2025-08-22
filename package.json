@@ -17,6 +17,7 @@
     "@nestjs/core": "^10.4.20",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/microservices": "^10.3.0",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.4.20",
     "@nestjs/platform-socket.io": "^10.4.20",
     "@nestjs/websockets": "^10.4.20",
@@ -24,6 +25,8 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.1"
@@ -34,7 +37,9 @@
     "@nestjs/testing": "^10.4.20",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.19.11",
+    "@types/passport-jwt": "^4.0.1",
     "@types/socket.io": "^3.0.1",
     "prisma": "^6.14.0",
     "typescript": "^5.9.2"

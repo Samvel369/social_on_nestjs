@@ -12,35 +12,31 @@ generator client {
 
 // users
 model User {
-  id           Int       @id @default(autoincrement())
-  username     String    @unique
-  email        String    @unique
-  password     String
-  lastActive   DateTime  @default(now())
-  avatarUrl    String    @default("/app/static/uploads/default-avatar.png")
-  birthdate    DateTime?                  // В SQLAlchemy был Date; в Prisma используем DateTime
-  status       String    @default("Приветствую всех!")
-  about        String    @default("Пока ничего о себе не рассказал.")
+  id         Int       @id @default(autoincrement())
+  username   String    @unique
+  email      String    @unique
+  password   String
+  lastActive DateTime  @default(now())
+  avatarUrl  String    @default("/app/static/uploads/default-avatar.png")
+  birthdate  DateTime?
+  status     String    @default("Приветствую всех!")
+  about      String    @default("Пока ничего о себе не рассказал.")
 
-  // relations
-  actions      Action[]
-  marks        ActionMark[]
+  actions Action[]
+  marks   ActionMark[]
 
-  // ignored users (двунаправленная many-to-many через join-таблицу)
-  ignored      IgnoredUser[] @relation("ignorer") // кого я игнорю
-  ignoredBy    IgnoredUser[] @relation("ignored") // кем я игнорюсь
+  ignored   IgnoredUser[] @relation("ignorer")
+  ignoredBy IgnoredUser[] @relation("ignored")
 
-  // friend requests
   sentRequests     FriendRequest[] @relation("sender")
   receivedRequests FriendRequest[] @relation("receiver")
 
-  // subscribers/followers
-  subscribers      Subscriber[]    @relation("owner")
-  subscriptions    Subscriber[]    @relation("subscriber")
+  subscribers   Subscriber[] @relation("owner")
+  subscriptions Subscriber[] @relation("subscriber")
 
-  // potential views
-  potentialViews   PotentialFriendView[] @relation("viewer")
-  viewedBy         PotentialFriendView[] @relation("viewedUser")
+  // ❗️Имена связей должны совпадать с теми, что в PotentialFriendView
+  potentialViews PotentialFriendView[] @relation("pfv_viewer")
+  viewedBy       PotentialFriendView[] @relation("pfv_user")
 }
 
 // actions
@@ -54,8 +50,8 @@ model Action {
   expiresAt      DateTime?
   normalizedText String    @default("") @db.VarChar(512)
 
-  user           User?     @relation(fields: [userId], references: [id])
-  marks          ActionMark[]
+  user  User?        @relation(fields: [userId], references: [id])
+  marks ActionMark[]
 
   @@index([normalizedText])
 }
@@ -76,13 +72,13 @@ model ActionMark {
 
 // заявки в друзья
 model FriendRequest {
-  id         Int                  @id @default(autoincrement())
+  id         Int                 @id @default(autoincrement())
   senderId   Int
   receiverId Int
-  timestamp  DateTime             @default(now())
-  status     FriendRequestStatus  @default(PENDING)
+  timestamp  DateTime            @default(now())
+  status     FriendRequestStatus @default(PENDING)
 
-  sender   User @relation("sender",   fields: [senderId],   references: [id])
+  sender   User @relation("sender", fields: [senderId], references: [id])
   receiver User @relation("receiver", fields: [receiverId], references: [id])
 
   @@index([senderId])
@@ -91,14 +87,14 @@ model FriendRequest {
 
 // подписки/подписчики (followers)
 model Subscriber {
-  id           Int   @id @default(autoincrement())
+  id           Int @id @default(autoincrement())
   subscriberId Int
   ownerId      Int
 
   subscriber User @relation("subscriber", fields: [subscriberId], references: [id])
-  owner      User @relation("owner",      fields: [ownerId],      references: [id])
+  owner      User @relation("owner", fields: [ownerId], references: [id])
 
-  @@unique([subscriberId, ownerId])      // один раз на одного owner’а
+  @@unique([subscriberId, ownerId]) // один раз на одного owner’а
   @@index([subscriberId])
   @@index([ownerId])
 }
@@ -110,9 +106,10 @@ model PotentialFriendView {
   userId    Int
   timestamp DateTime @default(now())
 
-  viewer User @relation("viewer",     fields: [viewerId], references: [id])
-  user   User @relation("viewedUser", fields: [userId],  references: [id])
+  viewer User @relation("pfv_viewer", fields: [viewerId], references: [id])
+  user   User @relation("pfv_user", fields: [userId], references: [id])
 
+  @@unique([viewerId, userId], name: "viewerId_userId") // ✅ добавили
   @@index([viewerId])
   @@index([userId])
 }
