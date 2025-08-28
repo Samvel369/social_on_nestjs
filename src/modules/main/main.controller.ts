@@ -1,33 +1,25 @@
-import { Controller, Get, Res, Req } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Controller, Get, UseGuards, Render } from '@nestjs/common';
 import { MainService } from './main.service';
+import { JwtAuthGuard } from '../auth/jwt.guard';
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
 @Controller()
 export class MainController {
   constructor(private readonly mainService: MainService) {}
 
+  // Публичная домашняя страница (index.html)
   @Get('/')
-  async home(@Req() req: Request, @Res() res: Response) {
-    // Безопасная проверка авторизации (Passport? заголовок? req.user?)
-    const isAuth =
-      typeof (req as any).isAuthenticated === 'function'
-        ? (req as any).isAuthenticated()
-        : !!(req.headers['x-user-id'] || (req as any).user?.userId);
-
-    if (isAuth) return res.redirect('/main');
-
-    // Если ещё не настроен view engine, вернём JSON чтобы не упасть
-    if (typeof res.render === 'function') return res.render('index');
-    return res.json({ page: 'index' });
+  @Render('index')   // => templates/index.html
+  home() {
+    return { page: 'index', ok: true };
   }
 
+  // Приватная главная (main.html)
+  @UseGuards(JwtAuthGuard)
   @Get('/main')
-  async main(@Res() res: Response) {
-    const topActions = await this.mainService.getTopActions();
-
-    if (typeof res.render === 'function') {
-      return res.render('main', { top_actions: topActions });
-    }
-    return res.json({ top_actions: topActions });
+  @Render('main')    // => templates/main.html
+  async main(@CurrentUser() user: AuthUser) {
+    const top_actions = await this.mainService.getTopActions();
+    return { top_actions, user };
   }
 }

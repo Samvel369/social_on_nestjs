@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 30px;">
+
+<!-- Возможные друзья -->
+<section>
+  <h2>Возможные друзья:</h2>
+
+    <form method="POST" style="margin: 6px 0;">
+      <label>Удалять из списка через:</label>
+      <select name="cleanup_time" onchange="this.form.submit()">
+        <option value="10" {{ 'selected' if cleanup_time == 10 else '' }}>10 мин</option>
+        <option value="30" {{ 'selected' if cleanup_time == 30 else '' }}>30 мин</option>
+        <option value="60" {{ 'selected' if cleanup_time == 60 else '' }}>1 час</option>
+      </select>
+    </form>
+
+    {# ВАЖНО: именно этот id мы обновляем из friends.js #}
+    <div id="possible-friends-list">
+      {% include 'partials/possible_friends.html' %}
+    </div>
+</section>
+
+  <hr>
+
+  <!-- Входящие заявки -->
+  <section>
+    <h2>Входящие заявки:</h2>
+    <div id="requests-list">
+    {% if incoming_requests %}
+      {% for req in incoming_requests %}
+        <div data-request-id="{{ req.id }}" style="display: flex; align-items: center; margin-bottom: 20px;">
+          <img src="{{ req.sender.avatar_url }}" alt="avatar"
+               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
+          <div style="flex-grow: 1;">
+            <strong><a href="/profile/req.sender.id">{{ req.sender.username }}</a></strong><br>
+            <a href="/profile/req.sender.id">Перейти в профиль</a>
+          </div>
+          <form method="post" action="# TODO: replace_url_for(friends_bp.accept_friend_request', request_id=req.id) }}" style="margin-right: 5px;">
+            <button type="submit">Принять</button>
+          </form>
+          <form method="POST" action="# TODO: replace_url_for(friends_bp.cancel_friend_request', request_id=req.id) }}">
+              <input type="hidden" name="subscribe" value="true">
+              <button type="submit">Оставить в подписчиках</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>Нет входящих заявок.</p>
+    {% endif %}
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Исходящие заявки -->
+  <section>
+    <h2>Исходящие заявки:</h2>
+    <div id="outgoing-requests">
+    {% if outgoing_requests %}
+      {% for req in outgoing_requests %}
+        <div data-request-id="{{ req.id }}" style="display: flex; align-items: center; margin-bottom: 20px;">
+          <img src="{{ req.receiver.avatar_url }}" alt="avatar"
+               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
+          <div style="flex-grow: 1;">
+            <strong><a href="/profile/req.receiver.id">{{ req.receiver.username }}</a></strong><br>
+            <a href="/profile/req.receiver.id">Перейти в профиль</a>
+          </div>
+          <form method="post" action="# TODO: replace_url_for(friends_bp.cancel_friend_request', request_id=req.id) }}">
+            <button type="submit">Отменить заявку</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>Нет исходящих заявок.</p>
+    {% endif %}
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Друзья -->
+  <section>
+    <h2>Мои друзья:</h2>
+    <div id="friends-list">
+    {% if friends %}
+      {% for user in friends %}
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+          <img src="{{ user.avatar_url }}" alt="avatar"
+               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
+          <div style="flex-grow: 1;">
+            <strong><a href="/profile/user.id">{{ user.username }}</a></strong><br>
+            <a href="/profile/user.id">Перейти в профиль</a>
+          </div>
+          <form method="post" action="# TODO: replace_url_for(friends_bp.remove_friend', user_id=user.id) }}">
+            <button type="submit">Удалить из друзей</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p id="no-friends-msg">Пока нет друзей.</p>
+    {% endif %}
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Подписчики:</h2>
+    <div id="subscribers-list">
+    {% if subscribers %}
+      {% for subscriber in subscribers %}
+        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+          <img src="{{ subscriber.avatar_url }}" alt="avatar"
+              style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
+          <div style="flex-grow: 1;">
+            <strong>
+              <a href="/profile/subscriber.id">
+                {{ subscriber.username }}
+              </a>
+            </strong>
+            <br>
+            <a href="/profile/subscriber.id">Перейти в профиль</a>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p id="no-subscribers-msg">Нет подписчиков.</p>
+    {% endif %}
+    </div>
+  </section>
+
+  <!-- 🔽 Новый блок "Подписан на:" -->
+  <section>
+    <h2>Подписан на:</h2>
+    <div id="subscriptions-list">
+      {% if subscriptions %}
+        {% for user in subscriptions %}
+          <div style="display: flex; align-items: center; margin-bottom: 20px;">
+            <img src="{{ user.avatar_url }}" alt="avatar"
+                style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
+            <div style="flex-grow: 1;">
+              <strong>
+                <a href="/profile/user.id">
+                  {{ user.username }}
+                </a>
+              </strong>
+              <br>
+              <a href="/profile/user.id">Перейти в профиль</a>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p id="no-subscriptions-msg">Вы ни на кого не подписаны.</p>
+      {% endif %}
+    </div>
+  </section>
+
+</div>
+
+<script src="/static/js/socket.js"></script>
+
+<script>
+  window.FRIENDS_PARTIALS = {
+    possible_friends: "# TODO: replace_url_for(friends_bp.friends_partial') }}",
+    incoming: "# TODO: replace_url_for(friends_bp.friends_partial_incoming') }}",
+    outgoing: "# TODO: replace_url_for(friends_bp.friends_partial_outgoing') }}",
+    friends: "# TODO: replace_url_for(friends_bp.friends_partial_friends') }}",
+    subscribers: "# TODO: replace_url_for(friends_bp.friends_partial_subscribers') }}",
+    subscriptions: "# TODO: replace_url_for(friends_bp.friends_partial_subscriptions') }}"
+  };
+</script>
+
+<script src="/static/js/friends.js"></script>
+
+
+{% endblock %}

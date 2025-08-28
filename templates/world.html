@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Наш мир{% endblock %}
+
+{% block content %}
+<h2>Наш мир действий</h2>
+
+<div class="world-columns">
+
+  <!-- 1. Ежедневные действия -->
+  <div class="column">
+    <h3>Ежедневные</h3>
+
+    {% if daily_actions and daily_actions.length %}
+      <ul>
+        {% for action in daily_actions %}
+          <li>
+            <a href="/action/{{ action.id }}" target="_blank">{{ action.text }}</a> —
+            <span id="counter-{{ action.id }}">0</span> чел.
+            <button onclick="markAction({{ action.id }})">Отметиться</button>
+            <div id="message-{{ action.id }}" style="color: red;"></div>
+            <span id="cooldown-{{ action.id }}" style="color:red; display:none;"></span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>Нет ежедневных действий</p>
+    {% endif %}
+  </div>
+
+  <!-- 2. Опубликованные (все опубликованные, видны всем) -->
+  <div class="column">
+    <h3>Опубликованные</h3>
+    <ul id="published-actions">
+      {% for action in published %}
+        <li data-id="{{ action.id }}">
+          <a href="/action/{{ action.id }}" target="_blank">{{ action.text }}</a> —
+          <span id="counter-{{ action.id }}">0</span> чел.
+          <button onclick="markAction({{ action.id }})">Отметиться</button>
+          <div id="message-{{ action.id }}" style="color: red;"></div>
+          <span id="cooldown-{{ action.id }}" style="color:red; display:none;"></span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- 3. Создать действие -->{% extends "base.html" %}
+{% block title %}Наш мир{% endblock %}
+
+{% block content %}
+<h2>Наш мир действий</h2>
+
+<div class="world-columns">
+
+    <!-- 1. Ежедневные действия -->
+    <div class="column">
+        <h3>Ежедневные</h3>
+
+        {% if daily_actions %}
+            <ul>
+                {% for action in daily_actions %}
+                    <li>
+                        <a href="{{ url_for('actions_bp.action_card', action_id=action.id) }}">{{ action.text }}</a> —
+                        <span id="counter-{{ action.id }}">0</span> чел.
+                        <button onclick="markAction({{ action.id }})">Отметиться</button>
+                        <div id="message-{{ action.id }}" style="color: red;"></div>
+                        <span id="cooldown-{{ action.id }}" style="color:red; display:none;"></span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Нет ежедневных действий</p>
+        {% endif %}
+    </div>
+
+    <!-- 2. Опубликованные (все опубликованные, видны всем) -->
+    <div class="column">
+        <h3>Опубликованные</h3>
+        <ul id="published-actions">
+            {% for action in published %}
+                <li data-id="{{ action.id }}">
+                    <a href="{{ url_for('actions_bp.action_card', action_id=action.id) }}">{{ action.text }}</a> — 
+                    <span id="counter-{{ action.id }}">0</span> чел.
+                    <button onclick="markAction({{ action.id }})">Отметиться</button>
+                    <div id="message-{{ action.id }}" style="color: red;"></div>
+                    <span id="cooldown-{{ action.id }}" style="color:red; display:none;"></span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 3. Создать действие -->
+    <div class="column">
+      <h3>Создать действие</h3>
+
+      <!-- Создание ЧЕРНОВИКА: как на /my_actions -->
+      <form id="world-create-form" method="post" action="{{ url_for('my_actions_bp.my_actions') }}">
+        <input type="text" name="text" placeholder="Введите действие">
+        <button type="button" id="world-create-btn">Создать</button>
+      </form>
+
+      {# Берём список черновиков: drafts (если есть) или my_created #}
+      {% set _drafts = drafts or my_created %}
+
+      {% if _drafts %}
+        <h4>Созданные действия</h4>
+
+        <div id="created-actions">
+          {% for action in _drafts %}
+            <div class="draft-action" data-id="{{ action.id }}">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <p style="margin:0;">
+                  <a href="{{ url_for('actions_bp.action_card', action_id=action.id) }}">
+                    {{ action.text }}
+                  </a>
+                </p>
+
+                {# Твоя кнопка удаления (как и было) #}
+                <form method="post"
+                      action="{{ url_for('world_bp.delete_action', action_id=action.id) }}"
+                      style="margin-left:10px;">
+                  <button type="submit" onclick="return confirm('Удалить?')">✘</button>
+                </form>
+              </div>
+
+              {# ПУБЛИКАЦИЯ этого черновика через /my_actions #}
+              <form class="world-publish" method="post"
+                    action="{{ url_for('my_actions_bp.publish_action', action_id=action.id) }}">
+                <select name="duration" id="duration-{{ action.id }}">
+                  <option value="10">10 мин</option>
+                  <option value="30">30 мин</option>
+                  <option value="60">1 час</option>
+                </select>
+                <button type="button" class="publish-btn" data-id="{{ action.id }}">Опубликовать</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+
+<script src="{{ url_for('static', filename='js/world.js') }}"></script>
+
+{% endblock %} 
+  <div class="column">
+    <h3>Создать действие</h3>
+
+    <!-- Создание ЧЕРНОВИКА (обработку перехватывает world.js, чтобы не было «белого JSON») -->
+    <form id="world-create-form" method="post" action="/api/my-actions/new">
+      <input type="text" name="text" placeholder="Введите действие" />
+      <button type="button" id="world-create-btn">Создать</button>
+    </form>
+
+    {% set _drafts = drafts or my_created %}
+    {% if _drafts and _drafts.length %}
+      <h4>Созданные действия</h4>
+
+      <div id="created-actions">
+        {% for action in _drafts %}
+          <div class="draft-action" data-id="{{ action.id }}">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <p style="margin:0;">
+                <a href="/action/{{ action.id }}" target="_blank">{{ action.text }}</a>
+              </p>
+
+              <!-- Удаление черновика (обработку можно сделать в JS либо оставить как submit на POST /world/delete/:id) -->
+              <form method="post" action="/api/my-actions/delete/{{ action.id }}" style="margin-left:10px;">
+                <button type="submit" onclick="return confirm('Удалить?')">✘</button>
+              </form>
+            </div>
+
+            <!-- Публикация черновика -->
+            <form class="world-publish" method="post" action="/api/my-actions/publish">
+              <input type="hidden" name="id" value="{{ action.id }}">
+              <select name="duration" id="duration-{{ action.id }}">
+                <option value="10">10 мин</option>
+                <option value="30">30 мин</option>
+                <option value="60">1 час</option>
+              </select>
+              <button type="button" class="publish-btn" data-id="{{ action.id }}">Опубликовать</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Скрипт страницы -->
+<script src="/static/js/world.js"></script>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>{{ user.username }}</h2>
+<img src="{{ user.avatar_url }}" width="100" style="border-radius: 50%"><br><br>
+
+{% if full_access %}
+    <p>Email: {{ user.email }}</p>
+    <p>О себе: {{ user.about }}</p>
+{% else %}
+    <form method="post"
+            action="# TODO: replace_url_for(friends_bp.send_friend_request', user_id=user.id) }}"
+            data-ajax="1">
+        <button type="submit">Добавить в друзья</button>
+    </form>
+{% endif %}
+
+<br>
+<a href="/api/friends/view">&larr; Назад</a>
+
+{# ниже, перед закрывающим {% endblock %} или в base.html #}
+<script src="/static/js/profile.js"></script>
+
+{% endblock %}

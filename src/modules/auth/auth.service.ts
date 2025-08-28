@@ -1,13 +1,11 @@
+// src/modules/auth/auth.service.ts
 import {
-  Injectable,
-  BadRequestException,
-  ConflictException,
-  UnauthorizedException,
+  Injectable, BadRequestException, ConflictException, UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto, LoginDto } from './auth.dto';
-import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +18,7 @@ export class AuthService {
 
     const exists = await this.prisma.user.findFirst({
       where: { OR: [{ username: dto.username }, { email: dto.email }] },
-      select: { id: true }, // достаточно факта наличия
+      select: { id: true },
     });
     if (exists) throw new ConflictException('Пользователь уже существует');
 
@@ -32,21 +30,19 @@ export class AuthService {
         email: dto.email,
         password: hash,
         birthdate: dto.birthdate ? new Date(dto.birthdate) : null,
-        // lastActive проставится по default(now())
       },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        lastActive: true, // ⬅ вместо createdAt
-      },
+      select: { id: true, username: true, email: true, lastActive: true },
     });
 
     return { message: 'Регистрация прошла успешно', user };
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { username: dto.username } });
+    // берём только нужные поля, но включаем password для сравнения
+    const user = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+      select: { id: true, username: true, email: true, password: true, lastActive: true },
+    });
     if (!user) throw new UnauthorizedException('Неверный логин или пароль');
 
     const ok = await bcrypt.compare(dto.password, user.password);
@@ -59,12 +55,13 @@ export class AuthService {
 
     return {
       message: 'Успешный вход',
-      access_token,                                       // ← вот он
+      access_token,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        createdAt: user.createdAt,
+        // если фронт ждёт createdAt, маппим lastActive под этим именем:
+        createdAt: user.lastActive, // ← ключ остаётся "createdAt", значение из lastActive
       },
     };
   }

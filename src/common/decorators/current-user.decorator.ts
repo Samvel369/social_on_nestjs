@@ -1,6 +1,13 @@
-// src/common/decorators/current-user.decorator.ts
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-export const CurrentUser = createParamDecorator((_d, ctx: ExecutionContext) => {
-  const req = ctx.switchToHttp().getRequest();
-  return req.user as { userId: number; username: string };
-});
+
+export interface AuthUser {
+  userId: number;
+  username: string;
+}
+
+export const CurrentUser = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): AuthUser => {
+    const req = ctx.switchToHttp().getRequest();
+    return req.user as AuthUser; // кладёт стратегия
+  },
+);
