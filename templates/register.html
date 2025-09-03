@@ -4,19 +4,21 @@
 
 {% block content %}
 <h2>Регистрация</h2>
-<form method="POST">
-    <label>Имя пользователя:</label><br>
-    <input type="text" name="username" required><br><br>
-    
-    <label>Пароль:</label><br>
-    <input type="password" name="password" required><br><br>
-    
-    <label>Подтвердите пароль:</label><br>
-    <input type="password" name="confirm_password" required><br><br>
+<form id="register-form" method="POST" action="/api/auth/register" novalidate>
+  <label>Имя пользователя:</label><br>
+  <input type="text" name="username" required><br><br>
 
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-    
-    <input type="submit" value="Зарегистрироваться">
+  <label>Пароль:</label><br>
+  <input type="password" name="password" required><br><br>
+
+  <label>Подтвердите пароль:</label><br>
+  <input type="password" name="confirmPassword" required><br><br>
+
+  <label>Email:</label><br>
+  <input type="email" name="email" required><br><br>
+
+  <input type="submit" value="Зарегистрироваться">
 </form>
+
+<script src="/static/js/auth.js"></script>
 {% endblock %}

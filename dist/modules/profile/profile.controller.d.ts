@@ -4,69 +4,60 @@ import { AuthUser } from '../../common/decorators/current-user.decorator';
 export declare class ProfileController {
     private readonly service;
     constructor(service: ProfileService);
-    viewMePage(user: AuthUser): Promise<{
+    view(user: AuthUser): Promise<{
+        current_user: {
+            id: number;
+            userId: number;
+            username: string;
+            avatar_url: string;
+        };
+        user: {
+            id: number;
+            username: string;
+            email: string;
+            avatar_url: string;
+            birthdate: string;
+            status: string;
+            about: string;
+        };
+        total_users: number;
+        online_users: number;
+    }>;
+    publicProfile(id: number): Promise<{
+        current_user: null;
+        user: {
+            id: number;
+            username: string;
+            avatar_url: string;
+            birthdate: string;
+            status: string;
+            about: string;
+        };
+        view: "self" | "public" | "preview";
+        total_users: number;
+        online_users: number;
+    }>;
+    editProfile(user: AuthUser): Promise<{
+        current_user: {
+            id: number;
+            userId: number;
+            username: string;
+            avatar_url: string;
+        };
         user: {
             username: string;
             email: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
+            avatar_url: string;
+            birthdate: string;
             status: string;
             about: string;
         };
-        fullAccess: boolean;
-        view: "self";
+        total_users: number;
+        online_users: number;
     }>;
-    viewPublicPage(me: AuthUser, id: number): Promise<{
-        user: {
-            username: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        };
-        fullAccess: boolean;
-        view: "self";
-    } | {
-        user: {
-            username: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        };
-        fullAccess: boolean;
-        view: "public" | "preview";
-    }>;
-    userPreview(me: AuthUser, id: number): Promise<{
-        user: {
-            username: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        };
-        fullAccess: boolean;
-        view: "self";
-    } | {
-        user: {
-            username: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        };
-        fullAccess: boolean;
-        view: "public" | "preview";
+    saveProfile(user: AuthUser, file: Express.Multer.File, body: any): Promise<{
+        ok: boolean;
+        redirect: string;
     }>;
     me(user: AuthUser): Promise<{
         user: {
@@ -82,7 +73,7 @@ export declare class ProfileController {
         fullAccess: boolean;
         view: "self";
     }>;
-    view(user: AuthUser, id: number): Promise<{
+    byId(user: AuthUser, id: number): Promise<{
         user: {
             username: string;
             birthdate: Date | null;
@@ -107,7 +98,7 @@ export declare class ProfileController {
         fullAccess: boolean;
         view: "public" | "preview";
     }>;
-    update(user: AuthUser, dto: UpdateProfileDto): Promise<{
+    patch(user: AuthUser, dto: UpdateProfileDto): Promise<{
         ok: boolean;
         user: {
             username: string;

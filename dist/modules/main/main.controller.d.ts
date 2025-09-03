@@ -3,11 +3,23 @@ import { AuthUser } from '../../common/decorators/current-user.decorator';
 export declare class MainController {
     private readonly mainService;
     constructor(mainService: MainService);
-    home(): {
-        page: string;
-        ok: boolean;
+    root(): {
+        current_user: null;
+        total_users: number;
+        online_users: number;
+    };
+    homeSlash(): {
+        current_user: null;
+        total_users: number;
+        online_users: number;
     };
     main(user: AuthUser): Promise<{
+        current_user: {
+            id: number;
+            userId: number;
+            username: string;
+            avatar_url: any;
+        };
         top_actions: ({
             id: number;
             userId: number | null;
@@ -20,6 +32,7 @@ export declare class MainController {
         } & {
             marks: number;
         })[];
-        user: AuthUser;
+        total_users: number;
+        online_users: number;
     }>;
 }

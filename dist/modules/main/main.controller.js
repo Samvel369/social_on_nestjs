@@ -21,26 +21,51 @@ let MainController = class MainController {
     constructor(mainService) {
         this.mainService = mainService;
     }
-    home() {
-        return { page: 'index', ok: true };
+    root() {
+        return {
+            current_user: null,
+            total_users: 0,
+            online_users: 0,
+        };
+    }
+    homeSlash() {
+        return this.root();
     }
     async main(user) {
+        const current_user = {
+            id: user.userId,
+            userId: user.userId,
+            username: user.username,
+            avatar_url: user?.avatarUrl ?? '',
+        };
         const top_actions = await this.mainService.getTopActions();
-        return { top_actions, user };
+        return {
+            current_user,
+            top_actions,
+            total_users: 0,
+            online_users: 0,
+        };
     }
 };
 exports.MainController = MainController;
 __decorate([
-    (0, common_1.Get)('/'),
-    (0, common_1.Render)('index'),
+    (0, common_1.Get)(),
+    (0, common_1.Render)('index.html'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
-], MainController.prototype, "home", null);
+], MainController.prototype, "root", null);
+__decorate([
+    (0, common_1.Get)('index'),
+    (0, common_1.Render)('index.html'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], MainController.prototype, "homeSlash", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
-    (0, common_1.Get)('/main'),
-    (0, common_1.Render)('main'),
+    (0, common_1.Get)('main'),
+    (0, common_1.Render)('main.html'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

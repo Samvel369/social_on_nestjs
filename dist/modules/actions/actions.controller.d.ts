@@ -1,9 +1,26 @@
-import { Response } from 'express';
 import { ActionsService } from './actions.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 export declare class ActionsController {
-    private readonly actionsService;
-    constructor(actionsService: ActionsService);
+    private readonly actions;
+    constructor(actions: ActionsService);
+    actionCardPage(id: string): Promise<{
+        action: {
+            id: number;
+            userId: number | null;
+            text: string;
+            isPublished: boolean;
+            createdAt: Date;
+            expiresAt: Date | null;
+        } | null;
+        users: never[] | {
+            id: number;
+            username: string;
+        }[];
+        total_marks: number;
+        peak: number;
+        total_users: number;
+        online_users: number;
+    }>;
     getActionCard(id: string): Promise<{
         action: null;
         total_marks: number;
@@ -25,20 +42,6 @@ export declare class ActionsController {
         }[];
         peak: number;
     }>;
-    mark(id: string, user: AuthUser): Promise<{
-        error: string;
-        remaining: number;
-        success?: undefined;
-    } | {
-        success: boolean;
-        error?: undefined;
-        remaining?: undefined;
-    }>;
-    getMarkCounts(): Promise<Record<number, number>>;
-    getPublishedActions(): Promise<{
-        id: number;
-        text: string;
-    }[]>;
     getActionStats(id: string): Promise<{
         total_marks: number;
         peak: number;
@@ -49,5 +52,18 @@ export declare class ActionsController {
         text: string;
         marks: number;
     }[]>;
-    renderActionCard(id: string, res: Response): Promise<void>;
+    getMarkCounts(): Promise<Record<number, number>>;
+    getPublishedActions(): Promise<{
+        id: number;
+        text: string;
+    }[]>;
+    mark(id: string, user: AuthUser): Promise<{
+        error: string;
+        remaining: number;
+        success?: undefined;
+    } | {
+        success: boolean;
+        error?: undefined;
+        remaining?: undefined;
+    }>;
 }

@@ -1,54 +1,51 @@
 {% extends "base.html" %}
-
 {% block title %}Главная{% endblock %}
 
 {% block content %}
 <h2>Добро пожаловать!</h2>
 <h3>Топ 10 действий (по отметкам за последнюю минуту)</h3>
-<ul id="top-actions-list" style="list-style: none; padding: 0;">
-    <li>Загрузка...</li>
+<ul id="top-actions-list" style="list-style:none;padding:0;">
+  <li>Загрузка...</li>
 </ul>
 
 <script>
 function updateTopActions() {
-    fetch('/get_top_actions')
-        .then(response => response.json())
-        .then(data => {
-            const list = document.getElementById('top-actions-list');
-            list.innerHTML = '';
+  fetch('/api/actions/get_top_actions', { credentials: 'include' })
+    .then(r => r.json())
+    .then(data => {
+      const list = document.getElementById('top-actions-list');
+      list.innerHTML = '';
+      if (!Array.isArray(data) || data.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = 'Нет активных действий';
+        list.appendChild(li);
+        return;
+      }
+      data.forEach((action, idx) => {
+        const li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.padding = '6px 10px';
+        li.style.borderBottom = '1px solid #ccc';
 
-            if (data.length === 0) {
-                const li = document.createElement('li');
-                li.textContent = 'Нет активных действий';
-                list.appendChild(li);
-                return;
-            }
+        const left = document.createElement('span');
+        const link = document.createElement('a');
+        link.href = `/api/actions/action_card/${action.id}`;
+        link.target = '_blank';
+        link.textContent = `${idx + 1}. ${action.text}`;
+        left.appendChild(link);
 
-            data.forEach((action, index) => {
-                const li = document.createElement('li');
-                li.style.display = 'flex';
-                li.style.justifyContent = 'space-between';
-                li.style.padding = '6px 10px';
-                li.style.borderBottom = '1px solid #ccc';
+        const right = document.createElement('span');
+        right.textContent = String(action.marks ?? 0);
 
-                const left = document.createElement('span');
-                const link = document.createElement('a');
-                link.href = `/action/${action.id}`;
-                link.textContent = `${index + 1}. ${action.text}`;
-                left.appendChild(link);
-
-                const right = document.createElement('span');
-                right.textContent = `${action.marks}`;
-
-                li.appendChild(left);
-                li.appendChild(right);
-                list.appendChild(li);
-            });
-        });
+        li.appendChild(left);
+        li.appendChild(right);
+        list.appendChild(li);
+      });
+    })
+    .catch(() => {});
 }
-
 updateTopActions();
 setInterval(updateTopActions, 1000);
 </script>
 {% endblock %}
-

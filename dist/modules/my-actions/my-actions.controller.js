@@ -23,18 +23,17 @@ let MyActionsController = class MyActionsController {
         this.service = service;
     }
     async view(user) {
-        return this.service.myActionsPage(user.userId);
-    }
-    async pDrafts(user) {
-        const data = await this.service.myActionsPage(user.userId);
-        return { drafts: data.drafts ?? [] };
-    }
-    async pPublished(user) {
-        const data = await this.service.myActionsPage(user.userId);
-        return { published: data.published ?? [] };
-    }
-    async page(user) {
-        return this.service.myActionsPage(user.userId);
+        const current_user = {
+            id: user.userId,
+            userId: user.userId,
+            username: user.username,
+            avatar_url: user?.avatarUrl ?? '',
+        };
+        const drafts = [];
+        const published = [];
+        const total_users = 0;
+        const online_users = 0;
+        return { current_user, drafts, published, total_users, online_users };
     }
     async create(user, dto) {
         return this.service.createDraft(user.userId, dto);
@@ -61,29 +60,6 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], MyActionsController.prototype, "view", null);
-__decorate([
-    (0, common_1.Get)('partials/drafts'),
-    (0, common_1.Render)('partials/my_actions_drafts.html'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "pDrafts", null);
-__decorate([
-    (0, common_1.Get)('partials/published'),
-    (0, common_1.Render)('partials/my_actions_published.html'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "pPublished", null);
-__decorate([
-    (0, common_1.Get)(),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "page", null);
 __decorate([
     (0, common_1.Post)('new'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

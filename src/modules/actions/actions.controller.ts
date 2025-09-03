@@ -1,69 +1,64 @@
-import { Controller, Get, Post, Param, UseGuards, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Get, Post, Param, UseGuards, Render } from '@nestjs/common';
 import { ActionsService } from './actions.service';
-import { JwtAuthGuard } from '../auth/jwt.guard'; // modules/auth/jwt.guard.ts
+import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('actions')
 export class ActionsController {
-  constructor(private readonly actionsService: ActionsService) {}
+  constructor(private readonly actions: ActionsService) {}
 
-  // === API: JSON =================================================================
+  // ---------- HTML ----------
+  // Полноценная страница карточки действия (templates/action_card.html)
+  @Get('action_card/:id')
+  @Render('action_card.html')
+  async actionCardPage(@Param('id') id: string) {
+    const data = await this.actions.getActionCard(Number(id));
+    return {
+      action: data.action,
+      users: data.users,               // [{id, username}]
+      total_marks: data.total_marks,
+      peak: data.peak,
+      // сайдбар справа — чтобы base.html не падал
+      total_users: 0,
+      online_users: 0,
+    };
+  }
 
-  // GET /api/actions/action/:id
+  // ---------- JSON ----------
+  // (оставляю имена и сигнатуры под твои методы сервиса)
   @Get('action/:id')
   getActionCard(@Param('id') id: string) {
-    return this.actionsService.getActionCard(Number(id));
-  }
-
-  // POST /api/actions/mark_action/:id
-  @UseGuards(JwtAuthGuard)
-  @Post('mark_action/:id')
-  mark(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.actionsService.markAction(
-      Number(id),
-      user.userId,
-      user.username ?? `user${user.userId}`,
-    );
-  }
-
-  @Get('get_mark_counts')
-  getMarkCounts() {
-    return this.actionsService.getMarkCounts();
-  }
-
-  @Get('get_published_actions')
-  getPublishedActions() {
-    return this.actionsService.getPublishedActions();
+    return this.actions.getActionCard(Number(id));
   }
 
   @Get('action_stats/:id')
   getActionStats(@Param('id') id: string) {
-    return this.actionsService.getActionStats(Number(id));
+    return this.actions.getActionStats(Number(id));
   }
 
   @Get('get_top_actions')
   getTopActions() {
-    return this.actionsService.getTopActions();
+    return this.actions.getTopActions();
   }
 
-  // === HTML: паршиал карточки ====================================================
+  @Get('get_mark_counts')
+  getMarkCounts() {
+    return this.actions.getMarkCounts();
+  }
 
-  /**
-   * Рендерит паршиал templates/partials/action_card.html
-   * чтобы фронт мог подгрузить готовую вёрстку через fetch и вставить в DOM.
-   *
-   * GET /api/actions/partials/action_card/:id
-   */
-  @Get('action_card/:id')
-  async renderActionCard(@Param('id') id: string, @Res() res: Response) {
-    const data = await this.actionsService.getActionCard(Number(id));
-    // Во Flask этот паршиал обычно ожидает: action, users, total_marks, peak
-    return res.render('partials/action_card.html', {
-      action: data.action,
-      users: data.users,
-      total_marks: data.total_marks,
-      peak: data.peak,
-    });
+  @Get('get_published_actions')
+  getPublishedActions() {
+    return this.actions.getPublishedActions();
+  }
+
+  // отметка действия
+  @UseGuards(JwtAuthGuard)
+  @Post('mark_action/:id')
+  mark(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.actions.markAction(
+      Number(id),
+      user.userId,
+      user.username ?? `user${user.userId}`,
+    );
   }
 }

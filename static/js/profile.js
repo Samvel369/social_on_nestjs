@@ -14,19 +14,27 @@ document.addEventListener('submit', async (e) => {
   if (btn) btn.disabled = true;
 
   try {
-    const res = await fetch(form.action || location.href, { method: 'POST', body: new FormData(form) });
+    const res = await fetch(form.action || location.href, {
+      method: 'POST',
+      body: new FormData(form),
+      credentials: 'include',            // <-- Важно!
+    });
     const data = await res.json().catch(() => ({}));
-    if (window.showNotification) showNotification(data.message || 'Готово', data.ok ? 'success' : 'error');
 
-    if (data.ok && btn) {
-      btn.textContent = 'Заявка отправлена';
-      btn.disabled = true;
+    if (window.showNotification) {
+      showNotification(data.message || (res.ok ? 'Готово' : 'Ошибка'), res.ok ? 'success' : 'error');
+    }
+    if (res.ok && data.redirect) {
+      location.assign(data.redirect);
+    } else if (res.ok && !data.redirect) {
+      // по умолчанию можно просто обновить страницу
+      // location.reload();
     }
   } catch (err) {
     console.error(err);
     if (window.showNotification) showNotification('Ошибка', 'error');
   } finally {
     form.dataset.busy = '0';
-    if (btn && !btn.disabled) btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 });

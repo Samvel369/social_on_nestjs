@@ -6,10 +6,14 @@ const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const nunjucks = require("nunjucks");
+const cookieParser = require("cookie-parser");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    app.enableCors({ origin: '*', credentials: false });
-    app.setGlobalPrefix('api');
+    app.use(cookieParser());
+    app.setGlobalPrefix('api', {
+        exclude: [{ path: '/', method: common_1.RequestMethod.GET }],
+    });
+    app.enableCors({ origin: true, credentials: true });
     app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
     app.useStaticAssets(path.resolve(process.cwd(), 'static'), { prefix: '/static/' });
     const viewsDir = path.resolve(process.cwd(), 'templates');

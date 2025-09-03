@@ -1,26 +1,44 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% block title %}Друзья{% endblock %}
 
 {% block content %}
-<div style="display: flex; flex-direction: column; gap: 30px;">
+<div style="display:flex; flex-direction:column; gap:30px;">
 
-<!-- Возможные друзья -->
-<section>
-  <h2>Возможные друзья:</h2>
+  <!-- Возможные друзья -->
+  <section>
+    <h2>Возможные друзья:</h2>
 
-    <form method="POST" style="margin: 6px 0;">
-      <label>Удалять из списка через:</label>
-      <select name="cleanup_time" onchange="this.form.submit()">
-        <option value="10" {{ 'selected' if cleanup_time == 10 else '' }}>10 мин</option>
-        <option value="30" {{ 'selected' if cleanup_time == 30 else '' }}>30 мин</option>
-        <option value="60" {{ 'selected' if cleanup_time == 60 else '' }}>1 час</option>
+    <div style="margin: 10px 0;">
+      <label for="cleanup-time">Удалять из списка через:</label>
+      <select id="cleanup-time">
+        <option value="10" {% if cleanup_time == 10 %}selected{% endif %}>10 мин</option>
+        <option value="30" {% if cleanup_time == 30 %}selected{% endif %}>30 мин</option>
+        <option value="60" {% if cleanup_time == 60 %}selected{% endif %}>1 час</option>
       </select>
-    </form>
-
-    {# ВАЖНО: именно этот id мы обновляем из friends.js #}
-    <div id="possible-friends-list">
-      {% include 'partials/possible_friends.html' %}
     </div>
-</section>
+
+    <div id="possible-friends-list">
+      {% if possible_friends and possible_friends.length %}
+        {% for pf in possible_friends %}
+          <div style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if pf.avatar_url %}
+              <img src="/uploads/{{ (pf.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+            <div style="flex:1;">
+              <strong>{{ pf.username }}</strong>
+            </div>
+            <button type="button" class="btn-subscribe" data-user-id="{{ pf.id }}">Подписаться</button>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>Список формируется автоматически.</p>
+      {% endif %}
+    </div>
+  </section>
 
   <hr>
 
@@ -28,27 +46,30 @@
   <section>
     <h2>Входящие заявки:</h2>
     <div id="requests-list">
-    {% if incoming_requests %}
-      {% for req in incoming_requests %}
-        <div data-request-id="{{ req.id }}" style="display: flex; align-items: center; margin-bottom: 20px;">
-          <img src="{{ req.sender.avatar_url }}" alt="avatar"
-               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-          <div style="flex-grow: 1;">
-            <strong><a href="/profile/req.sender.id">{{ req.sender.username }}</a></strong><br>
-            <a href="/profile/req.sender.id">Перейти в профиль</a>
+      {% if incoming_requests and incoming_requests.length %}
+        {% for req in incoming_requests %}
+          <div data-request-id="{{ req.id }}" style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if req.sender and req.sender.avatar_url %}
+              <img src="/uploads/{{ (req.sender.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+
+            <div style="flex:1;">
+              <strong>{{ req.sender and req.sender.username or 'Пользователь' }}</strong><br>
+              <a href="/api/profile/view">Перейти в профиль</a>
+            </div>
+
+            <!-- Эти действия подключим позже через доп. эндпоинты -->
+            <button type="button" class="btn-accept-request" data-request-id="{{ req.id }}" disabled>Принять</button>
+            <button type="button" class="btn-leave" data-user-id="{{ req.sender and req.sender.id }}" title="Оставить в подписчиках">Оставить</button>
           </div>
-          <form method="post" action="# TODO: replace_url_for(friends_bp.accept_friend_request', request_id=req.id) }}" style="margin-right: 5px;">
-            <button type="submit">Принять</button>
-          </form>
-          <form method="POST" action="# TODO: replace_url_for(friends_bp.cancel_friend_request', request_id=req.id) }}">
-              <input type="hidden" name="subscribe" value="true">
-              <button type="submit">Оставить в подписчиках</button>
-          </form>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p>Нет входящих заявок.</p>
-    {% endif %}
+        {% endfor %}
+      {% else %}
+        <p>Нет входящих заявок.</p>
+      {% endif %}
     </div>
   </section>
 
@@ -58,23 +79,27 @@
   <section>
     <h2>Исходящие заявки:</h2>
     <div id="outgoing-requests">
-    {% if outgoing_requests %}
-      {% for req in outgoing_requests %}
-        <div data-request-id="{{ req.id }}" style="display: flex; align-items: center; margin-bottom: 20px;">
-          <img src="{{ req.receiver.avatar_url }}" alt="avatar"
-               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-          <div style="flex-grow: 1;">
-            <strong><a href="/profile/req.receiver.id">{{ req.receiver.username }}</a></strong><br>
-            <a href="/profile/req.receiver.id">Перейти в профиль</a>
+      {% if outgoing_requests and outgoing_requests.length %}
+        {% for req in outgoing_requests %}
+          <div data-request-id="{{ req.id }}" style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if req.receiver and req.receiver.avatar_url %}
+              <img src="/uploads/{{ (req.receiver.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+            <div style="flex:1;">
+              <strong>{{ req.receiver and req.receiver.username or 'Пользователь' }}</strong><br>
+              <a href="/api/profile/view">Перейти в профиль</a>
+            </div>
+            <!-- Подключим позже -->
+            <button type="button" class="btn-cancel-request" data-request-id="{{ req.id }}" disabled>Отменить заявку</button>
           </div>
-          <form method="post" action="# TODO: replace_url_for(friends_bp.cancel_friend_request', request_id=req.id) }}">
-            <button type="submit">Отменить заявку</button>
-          </form>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p>Нет исходящих заявок.</p>
-    {% endif %}
+        {% endfor %}
+      {% else %}
+        <p>Нет исходящих заявок.</p>
+      {% endif %}
     </div>
   </section>
 
@@ -84,70 +109,76 @@
   <section>
     <h2>Мои друзья:</h2>
     <div id="friends-list">
-    {% if friends %}
-      {% for user in friends %}
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-          <img src="{{ user.avatar_url }}" alt="avatar"
-               style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-          <div style="flex-grow: 1;">
-            <strong><a href="/profile/user.id">{{ user.username }}</a></strong><br>
-            <a href="/profile/user.id">Перейти в профиль</a>
+      {% if friends and friends.length %}
+        {% for u in friends %}
+          <div style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if u.avatar_url %}
+              <img src="/uploads/{{ (u.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+            <div style="flex:1;">
+              <strong>{{ u.username }}</strong><br>
+              <a href="/api/profile/view">Перейти в профиль</a>
+            </div>
+            <!-- Подключим позже -->
+            <button type="button" class="btn-remove-friend" data-user-id="{{ u.id }}" disabled>Удалить из друзей</button>
           </div>
-          <form method="post" action="# TODO: replace_url_for(friends_bp.remove_friend', user_id=user.id) }}">
-            <button type="submit">Удалить из друзей</button>
-          </form>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p id="no-friends-msg">Пока нет друзей.</p>
-    {% endif %}
+        {% endfor %}
+      {% else %}
+        <p id="no-friends-msg">Пока нет друзей.</p>
+      {% endif %}
     </div>
   </section>
 
   <hr>
 
+  <!-- Подписчики -->
   <section>
     <h2>Подписчики:</h2>
     <div id="subscribers-list">
-    {% if subscribers %}
-      {% for subscriber in subscribers %}
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-          <img src="{{ subscriber.avatar_url }}" alt="avatar"
-              style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-          <div style="flex-grow: 1;">
-            <strong>
-              <a href="/profile/subscriber.id">
-                {{ subscriber.username }}
-              </a>
-            </strong>
-            <br>
-            <a href="/profile/subscriber.id">Перейти в профиль</a>
+      {% if subscribers and subscribers.length %}
+        {% for s in subscribers %}
+          <div style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if s.avatar_url %}
+              <img src="/uploads/{{ (s.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+            <div style="flex:1;">
+              <strong>{{ s.username }}</strong><br>
+              <a href="/api/profile/view">Перейти в профиль</a>
+            </div>
+            <button type="button" class="btn-leave" data-user-id="{{ s.id }}">Оставить в подписчиках</button>
           </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p id="no-subscribers-msg">Нет подписчиков.</p>
-    {% endif %}
+        {% endfor %}
+      {% else %}
+        <p id="no-subscribers-msg">Нет подписчиков.</p>
+      {% endif %}
     </div>
   </section>
 
-  <!-- 🔽 Новый блок "Подписан на:" -->
+  <!-- Подписки -->
   <section>
     <h2>Подписан на:</h2>
     <div id="subscriptions-list">
-      {% if subscriptions %}
-        {% for user in subscriptions %}
-          <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <img src="{{ user.avatar_url }}" alt="avatar"
-                style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-            <div style="flex-grow: 1;">
-              <strong>
-                <a href="/profile/user.id">
-                  {{ user.username }}
-                </a>
-              </strong>
-              <br>
-              <a href="/profile/user.id">Перейти в профиль</a>
+      {% if subscriptions and subscriptions.length %}
+        {% for u in subscriptions %}
+          <div style="display:flex;align-items:center;margin-bottom:16px;">
+            {% if u.avatar_url %}
+              <img src="/uploads/{{ (u.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% else %}
+              <img src="/static/default-avatar.png"
+                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
+            {% endif %}
+            <div style="flex:1;">
+              <strong>{{ u.username }}</strong><br>
+              <a href="/api/profile/view">Перейти в профиль</a>
             </div>
           </div>
         {% endfor %}
@@ -159,20 +190,44 @@
 
 </div>
 
-<script src="/static/js/socket.js"></script>
-
+<!-- Мини-скрипты только под уже существующие ручки -->
 <script>
-  window.FRIENDS_PARTIALS = {
-    possible_friends: "# TODO: replace_url_for(friends_bp.friends_partial') }}",
-    incoming: "# TODO: replace_url_for(friends_bp.friends_partial_incoming') }}",
-    outgoing: "# TODO: replace_url_for(friends_bp.friends_partial_outgoing') }}",
-    friends: "# TODO: replace_url_for(friends_bp.friends_partial_friends') }}",
-    subscribers: "# TODO: replace_url_for(friends_bp.friends_partial_subscribers') }}",
-    subscriptions: "# TODO: replace_url_for(friends_bp.friends_partial_subscriptions') }}"
-  };
+  // смена времени очистки
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('#cleanup-time')) {
+      const minutes = parseInt(e.target.value, 10) || 10;
+      fetch('/api/friends/cleanup_potential_friends', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minutes })
+      }).catch(()=>{});
+    }
+  });
+
+  // подписаться
+  document.addEventListener('click', (e) => {
+    const sub = e.target.closest('.btn-subscribe');
+    if (sub) {
+      const id = sub.dataset.userId;
+      fetch(`/api/friends/subscribe/${id}`, { method: 'POST', credentials: 'include' })
+        .then(() => location.reload())
+        .catch(()=>{});
+    }
+  });
+
+  // оставить в подписчиках
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-leave');
+    if (btn) {
+      const id = btn.dataset.userId;
+      fetch(`/api/friends/leave_in_subscribers/${id}`, { method: 'POST', credentials: 'include' })
+        .then(() => location.reload())
+        .catch(()=>{});
+    }
+  });
 </script>
 
+<script src="/static/js/socket.js"></script>
 <script src="/static/js/friends.js"></script>
-
-
 {% endblock %}

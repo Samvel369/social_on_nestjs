@@ -1,11 +1,21 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards, Render } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+  Render,
+} from '@nestjs/common';
 import { MyActionsService } from './my-actions.service';
-import { CreateActionDto, DeleteActionDto, PublishActionDto } from './my-actions.dto';
+import {
+  CreateActionDto,
+  DeleteActionDto,
+  PublishActionDto,
+} from './my-actions.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-// общий тип
-export type AuthUser = { userId: number; username: string };
+import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
 @UseGuards(JwtAuthGuard) // весь контроллер приватный
 @Controller('my-actions')
@@ -13,51 +23,41 @@ export class MyActionsController {
   constructor(private readonly service: MyActionsService) {}
 
   // ===== HTML =====
-
-  // Страница "Мои действия" -> templates/my_actions.html
   @Get('view')
   @Render('my_actions.html')
   async view(@CurrentUser() user: AuthUser) {
-    // во Flask страница показывала и drafts, и published
-    return this.service.myActionsPage(user.userId);
-  }
+    // ключевая правка: берём аватар из user.avatarUrl
+    const current_user = {
+      id: user.userId,
+      userId: user.userId,
+      username: user.username,
+      avatar_url: (user as any)?.avatarUrl ?? '',
+    };
 
-  // Паршиалы (если во Flask были отдельные partials)
-  @Get('partials/drafts')
-  @Render('partials/my_actions_drafts.html') // создай templates/partials/my_actions_drafts.html
-  async pDrafts(@CurrentUser() user: AuthUser) {
-    const data = await this.service.myActionsPage(user.userId);
-    return { drafts: data.drafts ?? [] };
-  }
+    // Можно оставить пустые списки — фронт доберёт через JSON по мере надобности
+    const drafts: any[] = [];
+    const published: any[] = [];
+    const total_users = 0;
+    const online_users = 0;
 
-  @Get('partials/published')
-  @Render('partials/my_actions_published.html') // создай templates/partials/my_actions_published.html
-  async pPublished(@CurrentUser() user: AuthUser) {
-    const data = await this.service.myActionsPage(user.userId);
-    return { published: data.published ?? [] };
+    return { current_user, drafts, published, total_users, online_users };
   }
 
   // ===== JSON API =====
 
-  /** Страница моих действий: drafts + published (JSON) */
-  @Get()
-  async page(@CurrentUser() user: AuthUser) {
-    return this.service.myActionsPage(user.userId);
-  }
-
-  /** Создать черновик */
+  /** Создать черновик (ожидает тело с { text: string }) */
   @Post('new')
   async create(@CurrentUser() user: AuthUser, @Body() dto: CreateActionDto) {
     return this.service.createDraft(user.userId, dto);
   }
 
-  /** Опубликовать (id из тела) */
+  /** Опубликовать черновик (ожидает тело с { id: number, duration: number }) */
   @Post('publish')
   async publish(@CurrentUser() user: AuthUser, @Body() dto: PublishActionDto) {
     return this.service.publishAction(user.userId, dto);
   }
 
-  /** Опубликовать (id в пути) — удобный вариант */
+  /** Опубликовать черновик (через путь) */
   @Post('publish/:id/:duration')
   async publishByPath(
     @CurrentUser() user: AuthUser,
@@ -67,7 +67,7 @@ export class MyActionsController {
     return this.service.publishAction(user.userId, { id, duration });
   }
 
-  /** Удалить (id из тела) */
+  /** Удалить (id в теле) */
   @Post('delete')
   async delete(@CurrentUser() user: AuthUser, @Body() dto: DeleteActionDto) {
     return this.service.deleteAction(user.userId, dto.id);
@@ -75,7 +75,10 @@ export class MyActionsController {
 
   /** Удалить (id в пути) */
   @Post('delete/:id')
-  async deleteByPath(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+  async deleteByPath(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
     return this.service.deleteAction(user.userId, id);
   }
 }

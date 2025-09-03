@@ -2,37 +2,43 @@
 {% block title %}Профиль{% endblock %}
 
 {% block content %}
+{% set u = user or current_user %}
+
 <h2>Профиль</h2>
-<p><a href="/api/profile/edit_profile') }}">Редактировать профиль</a></p>
+<p><a href="/api/profile/edit_profile">Редактировать профиль</a></p>
 
 <div style="display: flex; align-items: center; gap: 20px;">
-    <img src="{{ user.avatar_url or url_for('app', 'static', filename='default-avatar.png') }}" width="120" height="120" style="border-radius: 50%;">
+  {% if u and u.avatar_url %}
+    <img src="{{ (u.avatar_url or user.avatar_url) or '/static/default-avatar.png' }}"
+        width="120" height="120"
+        style="border-radius:50%;object-fit:cover;" />
+  {% else %}
+    <img src="/static/default-avatar.png" width="120" height="120" style="border-radius: 50%;">
+  {% endif %}
 
-    <div>
-        <p><strong>Имя:</strong> {{ user.username }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-        {% if user.birthdate %}
-        <p><strong>Дата рождения:</strong> {{ user.birthdate.strftime('%d.%m.%Y') }}</p>
-        {% endif %}
-        <p><strong>Статус:</strong> {{ user.status }}</p>
-    </div>
+  <div>
+    <p><strong>Имя:</strong> {{ u.username | default('—') }}</p>
+    <p><strong>Email:</strong> {{ u.email | default('—') }}</p>
+    {% if u.birthdate %}
+      <p><strong>Дата рождения:</strong> {{ u.birthdate }}</p>
+    {% endif %}
+    <p><strong>Статус:</strong> {{ u.status | default('—') }}</p>
+  </div>
 </div>
 
 <div style="margin-top: 20px;">
-    <p><strong>О себе:</strong></p>
-    <div style="background: #f9f9f9; padding: 10px; border-radius: 5px;">
-        {{ user.about }}
-    </div>
+  <p><strong>О себе:</strong></p>
+  <div style="background: #f9f9f9; padding: 10px; border-radius: 5px;">
+    {{ u.about | default('—') }}
+  </div>
 </div>
 
 <hr>
 
 <h3>Вкладки</h3>
 <ul>
-    <li><a href="# TODO: replace_url_for(friends_bp.friends') }}">Друзья</a></li>
-    <li><a href="# TODO: replace_url_for(my_actions_bp.my_actions') }}">Мои действия</a></li>
-    <li><a href="#">Статистика</a> (в разработке прямо сейчас)</li>
+  <li><a href="/api/friends/view">Друзья</a></li>
+  <li><a href="/api/my-actions/view">Мои действия</a></li>
+  <li><span>Статистика</span> (в разработке)</li>
 </ul>
-
 {% endblock %}
-

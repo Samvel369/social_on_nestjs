@@ -37,12 +37,14 @@
     "@nestjs/schematics": "^10.2.3",
     "@nestjs/testing": "^10.4.20",
     "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
     "@types/multer": "^2.0.0",
     "@types/node": "^20.19.11",
     "@types/nunjucks": "^3.2.6",
     "@types/passport-jwt": "^4.0.1",
     "@types/socket.io": "^3.0.1",
+    "cookie-parser": "^1.4.7",
     "prisma": "^6.15.0",
     "typescript": "^5.9.2"
   }

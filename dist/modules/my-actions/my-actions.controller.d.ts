@@ -1,49 +1,20 @@
 import { MyActionsService } from './my-actions.service';
 import { CreateActionDto, DeleteActionDto, PublishActionDto } from './my-actions.dto';
-export type AuthUser = {
-    userId: number;
-    username: string;
-};
+import { AuthUser } from '../../common/decorators/current-user.decorator';
 export declare class MyActionsController {
     private readonly service;
     constructor(service: MyActionsService);
     view(user: AuthUser): Promise<{
-        drafts: {
+        current_user: {
             id: number;
-            text: string;
-            createdAt: Date;
-        }[];
-        published: {
-            id: number;
-            text: string;
-            expiresAt: Date | null;
-        }[];
-    }>;
-    pDrafts(user: AuthUser): Promise<{
-        drafts: {
-            id: number;
-            text: string;
-            createdAt: Date;
-        }[];
-    }>;
-    pPublished(user: AuthUser): Promise<{
-        published: {
-            id: number;
-            text: string;
-            expiresAt: Date | null;
-        }[];
-    }>;
-    page(user: AuthUser): Promise<{
-        drafts: {
-            id: number;
-            text: string;
-            createdAt: Date;
-        }[];
-        published: {
-            id: number;
-            text: string;
-            expiresAt: Date | null;
-        }[];
+            userId: number;
+            username: string;
+            avatar_url: any;
+        };
+        drafts: any[];
+        published: any[];
+        total_users: number;
+        online_users: number;
     }>;
     create(user: AuthUser, dto: CreateActionDto): Promise<{
         ok: boolean;

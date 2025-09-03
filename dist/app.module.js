@@ -10,6 +10,8 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_module_1 = require("./prisma/prisma.module");
 const realtime_gateway_1 = require("./gateways/realtime.gateway");
+const core_1 = require("@nestjs/core");
+const locals_user_interceptor_1 = require("./common/interceptors/locals-user.interceptor");
 const auth_module_1 = require("./modules/auth/auth.module");
 const actions_module_1 = require("./modules/actions/actions.module");
 const friends_module_1 = require("./modules/friends/friends.module");
@@ -32,7 +34,13 @@ exports.AppModule = AppModule = __decorate([
             world_module_1.WorldModule,
             main_module_1.MainModule,
         ],
-        providers: [realtime_gateway_1.RealtimeGateway],
+        providers: [
+            realtime_gateway_1.RealtimeGateway,
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: locals_user_interceptor_1.LocalsUserInterceptor,
+            },
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

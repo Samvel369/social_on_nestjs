@@ -1,13 +1,14 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
-export interface AuthUser {
+export type AuthUser = {
   userId: number;
   username: string;
-}
+  avatarUrl?: string;   // <-- добавили
+};
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): AuthUser => {
+  (_data: unknown, ctx: ExecutionContext): AuthUser | undefined => {
     const req = ctx.switchToHttp().getRequest();
-    return req.user as AuthUser; // кладёт стратегия
+    return req.user;
   },
 );

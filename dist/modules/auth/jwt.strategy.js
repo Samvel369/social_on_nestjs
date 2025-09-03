@@ -10,24 +10,36 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JwtStrategy = void 0;
+const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
-const common_1 = require("@nestjs/common");
+const prisma_service_1 = require("../../prisma/prisma.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
-    constructor() {
+    constructor(prisma) {
         super({
-            jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: process.env.JWT_SECRET,
+            jwtFromRequest: passport_jwt_1.ExtractJwt.fromExtractors([
+                (req) => (req?.cookies?.token ? req.cookies.token : null),
+            ]),
             ignoreExpiration: false,
+            secretOrKey: process.env.JWT_SECRET ?? 'change_me_dev_secret',
         });
+        this.prisma = prisma;
     }
     async validate(payload) {
-        return { userId: payload.sub, username: payload.username };
+        const row = await this.prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: { id: true, username: true, avatarUrl: true },
+        });
+        return {
+            userId: row?.id ?? payload.sub,
+            username: row?.username ?? payload.username,
+            avatarUrl: row?.avatarUrl ?? '',
+        };
     }
 };
 exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

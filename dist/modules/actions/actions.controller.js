@@ -18,38 +18,48 @@ const actions_service_1 = require("./actions.service");
 const jwt_guard_1 = require("../auth/jwt.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let ActionsController = class ActionsController {
-    constructor(actionsService) {
-        this.actionsService = actionsService;
+    constructor(actions) {
+        this.actions = actions;
     }
-    getActionCard(id) {
-        return this.actionsService.getActionCard(Number(id));
-    }
-    mark(id, user) {
-        return this.actionsService.markAction(Number(id), user.userId, user.username ?? `user${user.userId}`);
-    }
-    getMarkCounts() {
-        return this.actionsService.getMarkCounts();
-    }
-    getPublishedActions() {
-        return this.actionsService.getPublishedActions();
-    }
-    getActionStats(id) {
-        return this.actionsService.getActionStats(Number(id));
-    }
-    getTopActions() {
-        return this.actionsService.getTopActions();
-    }
-    async renderActionCard(id, res) {
-        const data = await this.actionsService.getActionCard(Number(id));
-        return res.render('partials/action_card.html', {
+    async actionCardPage(id) {
+        const data = await this.actions.getActionCard(Number(id));
+        return {
             action: data.action,
             users: data.users,
             total_marks: data.total_marks,
             peak: data.peak,
-        });
+            total_users: 0,
+            online_users: 0,
+        };
+    }
+    getActionCard(id) {
+        return this.actions.getActionCard(Number(id));
+    }
+    getActionStats(id) {
+        return this.actions.getActionStats(Number(id));
+    }
+    getTopActions() {
+        return this.actions.getTopActions();
+    }
+    getMarkCounts() {
+        return this.actions.getMarkCounts();
+    }
+    getPublishedActions() {
+        return this.actions.getPublishedActions();
+    }
+    mark(id, user) {
+        return this.actions.markAction(Number(id), user.userId, user.username ?? `user${user.userId}`);
     }
 };
 exports.ActionsController = ActionsController;
+__decorate([
+    (0, common_1.Get)('action_card/:id'),
+    (0, common_1.Render)('action_card.html'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ActionsController.prototype, "actionCardPage", null);
 __decorate([
     (0, common_1.Get)('action/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -57,27 +67,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ActionsController.prototype, "getActionCard", null);
-__decorate([
-    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
-    (0, common_1.Post)('mark_action/:id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
-], ActionsController.prototype, "mark", null);
-__decorate([
-    (0, common_1.Get)('get_mark_counts'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], ActionsController.prototype, "getMarkCounts", null);
-__decorate([
-    (0, common_1.Get)('get_published_actions'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], ActionsController.prototype, "getPublishedActions", null);
 __decorate([
     (0, common_1.Get)('action_stats/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -92,13 +81,26 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ActionsController.prototype, "getTopActions", null);
 __decorate([
-    (0, common_1.Get)('action_card/:id'),
+    (0, common_1.Get)('get_mark_counts'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ActionsController.prototype, "getMarkCounts", null);
+__decorate([
+    (0, common_1.Get)('get_published_actions'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ActionsController.prototype, "getPublishedActions", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
+    (0, common_1.Post)('mark_action/:id'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", Promise)
-], ActionsController.prototype, "renderActionCard", null);
+    __metadata("design:returntype", void 0)
+], ActionsController.prototype, "mark", null);
 exports.ActionsController = ActionsController = __decorate([
     (0, common_1.Controller)('actions'),
     __metadata("design:paramtypes", [actions_service_1.ActionsService])

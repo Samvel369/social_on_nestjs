@@ -3,44 +3,48 @@
 
 {% block content %}
 <h2>Карточка действия</h2>
-<p><strong>Действие:</strong> {{ action.text }}</p>
-<p><strong>Всего отметок:</strong> <span id="total-marks">{{ total_marks }}</span></p>
-<p><strong>Уникальных пользователей:</strong> <span id="user-count">{{ users|length }}</span></p>
-<p><strong>Пик активности:</strong> <span id="peak">{{ peak }}</span> отметок за 1 минуту</p>
 
-<h4>Пользователи:</h4>
-<ul id="user-list">
-    {% for user in users %}
-        <a href="/profile/{{ user.id }}">{{ user.username }}</a>
+{% if action %}
+  <p><strong>Действие:</strong> {{ action.text }}</p>
+  <p><strong>Всего отметок:</strong> <span id="total-marks">{{ total_marks }}</span></p>
+  <p><strong>Уникальных пользователей:</strong> <span id="user-count">{{ users|length }}</span></p>
+  <p><strong>Пик активности:</strong> <span id="peak">{{ peak }}</span> отметок за 1 минуту</p>
+
+  <h4>Пользователи:</h4>
+  <ul id="user-list" style="list-style: none; padding-left: 0;">
+    {% for u in users %}
+      <li><a href="/api/profile/public/{{ u.id }}">{{ u.username }}</a></li>
     {% endfor %}
-</ul>
+  </ul>
+{% else %}
+  <p>Действие не найдено.</p>
+{% endif %}
 
 <a href="/api/world/view">← Назад</a>
 
 <script>
-const actionId = {{ action.id }}; // ← однажды объявляем
-
-function updateStats() {
+  const actionId = {{ action and action.id or 'null' }};
+  function updateStats() {
+    if (actionId === null) return;
     fetch(`/api/actions/action_stats/${actionId}`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('total-marks').innerText = data.total_marks;
-            document.getElementById('user-count').innerText = data.users.length;
-            document.getElementById('peak').innerText = data.peak;
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('total-marks').innerText = data.total_marks;
+        document.getElementById('user-count').innerText = (data.users || []).length;
+        document.getElementById('peak').innerText = data.peak;
 
-            const userList = document.getElementById('user-list');
-            userList.innerHTML = '';
-
-            data.users.forEach(username => {
-                const li = document.createElement('li');
-                li.textContent = username;
-                userList.appendChild(li);
-            });
+        const ul = document.getElementById('user-list');
+        if (!ul) return;
+        ul.innerHTML = '';
+        (data.users || []).forEach(username => {
+          const li = document.createElement('li');
+          li.textContent = username; // из JSON приходит массив имён
+          ul.appendChild(li);
         });
-}
-
-updateStats();
-setInterval(updateStats, 1000);
+      })
+      .catch(() => {});
+  }
+  updateStats();
+  setInterval(updateStats, 1000);
 </script>
-
 {% endblock %}

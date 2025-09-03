@@ -4,13 +4,15 @@
 
 {% block content %}
 <h2>Вход</h2>
-<form method="POST">
-    <label>Имя пользователя:</label><br>
-    <input type="text" name="username" required><br><br>
+<form id="login-form" method="POST" action="/api/auth/login" novalidate>
+  <label>Имя пользователя:</label><br>
+  <input type="text" name="username" required><br><br>
 
-    <label>Пароль:</label><br>
-    <input type="password" name="password" required><br><br>
+  <label>Пароль:</label><br>
+  <input type="password" name="password" required><br><br>
 
-    <input type="submit" value="Войти">
+  <input type="submit" value="Войти">
 </form>
+
+<script src="/static/js/auth.js"></script>
 {% endblock %}
