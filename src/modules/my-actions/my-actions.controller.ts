@@ -31,7 +31,7 @@ export class MyActionsController {
       id: user.userId,
       userId: user.userId,
       username: user.username,
-      avatar_url: (user as any)?.avatarUrl ?? '',
+      avatar_url: user.avatarUrl ?? '',
     };
 
     // Можно оставить пустые списки — фронт доберёт через JSON по мере надобности

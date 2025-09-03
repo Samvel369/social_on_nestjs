@@ -27,7 +27,7 @@ let MyActionsController = class MyActionsController {
             id: user.userId,
             userId: user.userId,
             username: user.username,
-            avatar_url: user?.avatarUrl ?? '',
+            avatar_url: user.avatarUrl ?? '',
         };
         const drafts = [];
         const published = [];

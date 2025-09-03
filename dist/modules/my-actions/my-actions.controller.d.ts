@@ -9,7 +9,7 @@ export declare class MyActionsController {
             id: number;
             userId: number;
             username: string;
-            avatar_url: any;
+            avatar_url: string;
         };
         drafts: any[];
         published: any[];
