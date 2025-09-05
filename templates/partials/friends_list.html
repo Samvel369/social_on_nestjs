@@ -1,15 +1,11 @@
-{% if friends %}
-  {% for user in friends %}
-    <div data-user-id="{{ user.id }}" style="display:flex;align-items:center;margin-bottom:20px;">
-      <img src="{{ user.avatar_url }}" alt="avatar"
-           style="width:60px;height:60px;object-fit:cover;border-radius:50%;margin-right:15px;">
-      <div style="flex-grow:1;">
-        <strong><a href="/profile/{{ user.id }}">{{ user.username }}</a></strong><br>
-        <a href="/profile/{{ user.id }}">Перейти в профиль</a>
+{% if friends and friends.length %}
+  {% for u in friends %}
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+      <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+      <div style="flex:1 1 auto;">
+        <strong><a href="/profile/{{ u.id }}">{{ u.username }}</a></strong>
       </div>
-      <form method="post" action="/api/friends/remove_friend/{{ user.id }}">
-        <button type="submit">Удалить из друзей</button>
-      </form>
+      <button data-action="remove-friend" data-user-id="{{ u.id }}">Удалить из друзей</button>
     </div>
   {% endfor %}
 {% else %}

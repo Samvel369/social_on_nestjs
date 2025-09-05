@@ -19,287 +19,246 @@ let FriendsService = class FriendsService {
         this.prisma = prisma;
         this.rt = rt;
     }
-    async areFriends(a, b) {
+    mapUser(u) {
+        return { id: u.id, username: u.username, avatar_url: u.avatarUrl ?? '' };
+    }
+    notifyOne(userId, event) {
+        try {
+            this.rt.emitToUser(userId, event);
+        }
+        catch { }
+    }
+    notifyBoth(a, b, event) {
+        try {
+            this.rt.emitToUsers([a, b], event);
+        }
+        catch { }
+    }
+    async assertUserExists(userId) {
+        const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+        if (!u)
+            throw new common_1.NotFoundException('user not found');
+    }
+    isUniqueError(e) {
+        return e && typeof e === 'object' && e.code === 'P2002';
+    }
+    async getPossible(viewerId, keepMinutes = 10) {
+        const since = new Date(Date.now() - keepMinutes * 60000);
+        const rows = await this.prisma.potentialFriendView.findMany({
+            where: { viewerId, timestamp: { gte: since } },
+            include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+            orderBy: { timestamp: 'desc' },
+        });
+        return rows.map(r => this.mapUser(r.user));
+    }
+    async getIncoming(userId) {
+        const rows = await this.prisma.friendRequest.findMany({
+            where: { receiverId: userId, status: client_1.FriendRequestStatus.PENDING },
+            include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
+            orderBy: { id: 'desc' },
+        });
+        return rows.map(r => ({ id: r.id, sender: this.mapUser(r.sender) }));
+    }
+    async getOutgoing(userId) {
+        const rows = await this.prisma.friendRequest.findMany({
+            where: { senderId: userId, status: client_1.FriendRequestStatus.PENDING },
+            include: { receiver: { select: { id: true, username: true, avatarUrl: true } } },
+            orderBy: { id: 'desc' },
+        });
+        return rows.map(r => ({ id: r.id, receiver: this.mapUser(r.receiver) }));
+    }
+    async getFriends(userId) {
+        const rows = await this.prisma.friendRequest.findMany({
+            where: {
+                status: client_1.FriendRequestStatus.ACCEPTED,
+                OR: [{ senderId: userId }, { receiverId: userId }],
+            },
+            include: {
+                sender: { select: { id: true, username: true, avatarUrl: true } },
+                receiver: { select: { id: true, username: true, avatarUrl: true } },
+            },
+            orderBy: { id: 'desc' },
+        });
+        return rows.map(r => this.mapUser(r.senderId === userId ? r.receiver : r.sender));
+    }
+    async getSubscribers(userId) {
+        const rows = await this.prisma.subscriber.findMany({
+            where: { ownerId: userId },
+            include: { subscriber: { select: { id: true, username: true, avatarUrl: true } } },
+            orderBy: { id: 'desc' },
+        });
+        return rows.map(r => this.mapUser(r.subscriber));
+    }
+    async getSubscriptions(userId) {
+        const rows = await this.prisma.subscriber.findMany({
+            where: { subscriberId: userId },
+            include: { owner: { select: { id: true, username: true, avatarUrl: true } } },
+            orderBy: { id: 'desc' },
+        });
+        return rows.map(r => this.mapUser(r.owner));
+    }
+    async sendFriendRequest(userId, toUserId) {
+        if (userId === toUserId)
+            throw new common_1.BadRequestException('self request');
+        await this.assertUserExists(toUserId);
+        const existing = await this.prisma.friendRequest.findFirst({
+            where: {
+                OR: [
+                    { senderId: userId, receiverId: toUserId },
+                    { senderId: toUserId, receiverId: userId },
+                ],
+                status: { in: [client_1.FriendRequestStatus.PENDING, client_1.FriendRequestStatus.ACCEPTED] },
+            },
+            select: { id: true, senderId: true, receiverId: true, status: true },
+        });
+        if (existing) {
+            if (existing.status === client_1.FriendRequestStatus.ACCEPTED) {
+                this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
+                return { ok: true, alreadyFriends: true };
+            }
+            if (existing.senderId === userId) {
+                this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
+                return { ok: true, duplicatePending: true };
+            }
+            await this.prisma.friendRequest.update({
+                where: { id: existing.id },
+                data: { status: client_1.FriendRequestStatus.ACCEPTED },
+            });
+            this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
+            return { ok: true, autoAccepted: true };
+        }
+        try {
+            await this.prisma.friendRequest.create({
+                data: { senderId: userId, receiverId: toUserId, status: client_1.FriendRequestStatus.PENDING },
+            });
+        }
+        catch (e) {
+            if (!this.isUniqueError(e))
+                throw e;
+        }
+        this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async acceptFriendRequest(userId, requestId) {
+        const fr = await this.prisma.friendRequest.findUnique({
+            where: { id: requestId },
+            select: { id: true, senderId: true, receiverId: true, status: true },
+        });
+        if (!fr)
+            return { ok: true };
+        if (fr.receiverId !== userId)
+            throw new common_1.ForbiddenException('not your request');
+        if (fr.status !== client_1.FriendRequestStatus.PENDING) {
+            this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+            return { ok: true };
+        }
+        await this.prisma.friendRequest.update({
+            where: { id: requestId },
+            data: { status: client_1.FriendRequestStatus.ACCEPTED },
+        });
+        this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async cancelFriendRequest(userId, requestId, subscribe = false) {
+        const fr = await this.prisma.friendRequest.findUnique({
+            where: { id: requestId },
+            select: { id: true, senderId: true, receiverId: true, status: true },
+        });
+        if (!fr)
+            return { ok: true };
+        if (fr.senderId !== userId)
+            throw new common_1.ForbiddenException('not your request');
+        if (fr.status === client_1.FriendRequestStatus.PENDING) {
+            await this.prisma.friendRequest.delete({ where: { id: requestId } });
+            if (subscribe)
+                await this.ensureSubscription(userId, fr.receiverId);
+            this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+            return { ok: true };
+        }
+        this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async leaveAsSubscriber(userId, requestId) {
+        const fr = await this.prisma.friendRequest.findUnique({
+            where: { id: requestId },
+            select: { id: true, senderId: true, receiverId: true, status: true },
+        });
+        if (!fr)
+            return { ok: true };
+        if (fr.receiverId !== userId)
+            throw new common_1.ForbiddenException('not your request');
+        if (fr.status === client_1.FriendRequestStatus.PENDING) {
+            await this.prisma.friendRequest.delete({ where: { id: requestId } });
+            await this.ensureSubscription(fr.senderId, fr.receiverId);
+            this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+            return { ok: true };
+        }
+        this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async removeFriend(userId, otherId) {
         const fr = await this.prisma.friendRequest.findFirst({
             where: {
                 status: client_1.FriendRequestStatus.ACCEPTED,
                 OR: [
-                    { senderId: a, receiverId: b },
-                    { senderId: b, receiverId: a },
+                    { senderId: userId, receiverId: otherId },
+                    { senderId: otherId, receiverId: userId },
+                ],
+            },
+            select: { id: true, senderId: true, receiverId: true },
+        });
+        if (!fr)
+            return { ok: true };
+        await this.prisma.friendRequest.delete({ where: { id: fr.id } });
+        this.notifyBoth(userId, otherId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async subscribe(userId, targetUserId) {
+        if (userId === targetUserId)
+            throw new common_1.BadRequestException('self subscribe');
+        await this.assertUserExists(targetUserId);
+        const isFriend = await this.prisma.friendRequest.findFirst({
+            where: {
+                status: client_1.FriendRequestStatus.ACCEPTED,
+                OR: [
+                    { senderId: userId, receiverId: targetUserId },
+                    { senderId: targetUserId, receiverId: userId },
                 ],
             },
             select: { id: true },
         });
-        return !!fr;
-    }
-    truthy(v) {
-        return v === '1' || v === 'true' || v === 'True' || v === 'on';
-    }
-    async friendsPage(userId, minutesFromSession = 10) {
-        const friendsAccepted = await this.prisma.friendRequest.findMany({
-            where: { status: client_1.FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
-            include: { sender: true, receiver: true },
-        });
-        const friends = friendsAccepted.map(fr => fr.senderId === userId ? fr.receiver : fr.sender);
-        const incomingRequests = await this.prisma.friendRequest.findMany({
-            where: { receiverId: userId, status: client_1.FriendRequestStatus.PENDING },
-            orderBy: { id: 'desc' },
-            include: { sender: true },
-        });
-        const outgoingRequests = await this.prisma.friendRequest.findMany({
-            where: { senderId: userId, status: client_1.FriendRequestStatus.PENDING },
-            orderBy: { id: 'desc' },
-            include: { receiver: true },
-        });
-        const myActions = await this.prisma.action.findMany({ where: { userId }, select: { id: true } });
-        const actionIds = myActions.map(a => a.id);
-        let markedUserIds = [];
-        if (actionIds.length) {
-            const marks = await this.prisma.actionMark.findMany({
-                where: { actionId: { in: actionIds }, userId: { not: userId } },
-                distinct: ['userId'],
-                select: { userId: true },
-            });
-            markedUserIds = marks.map(m => m.userId);
-        }
-        const subscribers = await this.prisma.user.findMany({
-            where: { subscriptions: { some: { ownerId: userId } } },
-        });
-        const subscriptions = await this.prisma.user.findMany({
-            where: { subscribers: { some: { subscriberId: userId } } },
-        });
-        const excludeIds = new Set([
-            userId,
-            ...incomingRequests.map(r => r.senderId),
-            ...outgoingRequests.map(r => r.receiverId),
-            ...friends.map(f => f.id),
-            ...subscribers.map(s => s.id),
-        ]);
-        const cutoff = new Date(Date.now() - minutesFromSession * 60 * 1000);
-        const recentCandidateRows = await this.prisma.potentialFriendView.findMany({
-            where: { viewerId: userId, timestamp: { gte: cutoff } },
-            select: { userId: true },
-        });
-        const recentIds = new Set(recentCandidateRows.map(r => r.userId));
-        const possibleIds = markedUserIds.filter(id => !excludeIds.has(id) && recentIds.has(id));
-        const users = possibleIds.length
-            ? await this.prisma.user.findMany({ where: { id: { in: possibleIds } } })
-            : [];
-        return {
-            users, friends, incoming_requests: incomingRequests,
-            outgoing_requests: outgoingRequests, subscribers, subscriptions,
-            cleanup_time: minutesFromSession,
-        };
-    }
-    async _collectFriendsPageData(userId) {
-        const incoming = await this.prisma.friendRequest.findMany({
-            where: { receiverId: userId, status: client_1.FriendRequestStatus.PENDING },
-            orderBy: { id: 'desc' },
-        });
-        const outgoing = await this.prisma.friendRequest.findMany({
-            where: { senderId: userId, status: client_1.FriendRequestStatus.PENDING },
-            orderBy: { id: 'desc' },
-        });
-        const accepted = await this.prisma.friendRequest.findMany({
-            where: { status: client_1.FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
-        });
-        const friendIds = accepted.map(fr => fr.senderId === userId ? fr.receiverId : fr.senderId);
-        const friends = friendIds.length
-            ? await this.prisma.user.findMany({ where: { id: { in: friendIds } } })
-            : [];
-        const subscribers = await this.prisma.user.findMany({
-            where: { subscribers: { some: { ownerId: userId } } },
-        });
-        const subscriptions = await this.prisma.user.findMany({
-            where: { subscribers: { some: { subscriberId: userId } } },
-        });
-        return { incoming, outgoing, friends, subscribers, subscriptions };
-    }
-    async partialIncoming(userId) {
-        const { incoming } = await this._collectFriendsPageData(userId);
-        return { incoming_requests: incoming };
-    }
-    async partialOutgoing(userId) {
-        const { outgoing } = await this._collectFriendsPageData(userId);
-        return { outgoing_requests: outgoing };
-    }
-    async partialFriends(userId) {
-        const { friends } = await this._collectFriendsPageData(userId);
-        return { friends };
-    }
-    async partialSubscribers(userId) {
-        const { subscribers } = await this._collectFriendsPageData(userId);
-        return { subscribers };
-    }
-    async partialSubscriptions(userId) {
-        const { subscriptions } = await this._collectFriendsPageData(userId);
-        return { subscriptions };
-    }
-    async sendFriendRequest(targetId, me, meUsername) {
-        if (me === targetId)
-            throw new common_1.BadRequestException('Нельзя добавить в друзья самого себя');
-        if (await this.areFriends(me, targetId)) {
-            return { ok: true, message: 'Вы уже друзья' };
-        }
-        const pending = await this.prisma.friendRequest.findFirst({
-            where: {
-                status: client_1.FriendRequestStatus.PENDING,
-                OR: [
-                    { senderId: me, receiverId: targetId },
-                    { senderId: targetId, receiverId: me },
-                ],
-            },
-        });
-        if (pending) {
-            return { ok: true, message: 'Заявка уже существует', data: { request_id: pending.id } };
-        }
-        const fr = await this.prisma.friendRequest.create({
-            data: { senderId: me, receiverId: targetId, status: client_1.FriendRequestStatus.PENDING },
-        });
-        await this.prisma.potentialFriendView.deleteMany({
-            where: { viewerId: me, userId: targetId },
-        });
-        const sender = await this.prisma.user.findUnique({ where: { id: me } });
-        this.rt.emitToLegacyUserRoom(targetId, 'friend_request_sent', {
-            request_id: fr.id,
-            sender_id: me,
-            sender_username: meUsername ?? sender?.username,
-            sender_avatar: sender?.avatarUrl ?? null,
-        });
-        return { ok: true, message: 'Заявка отправлена', data: { request_id: fr.id } };
-    }
-    async cancelFriendRequest(requestId, me, subscribeFlag) {
-        const fr = await this.prisma.friendRequest.findUnique({ where: { id: requestId } });
-        if (!fr)
-            throw new common_1.BadRequestException('Заявка не найдена');
-        if (me !== fr.senderId && me !== fr.receiverId)
-            throw new common_1.ForbiddenException();
-        const senderId = fr.senderId;
-        const receiverId = fr.receiverId;
-        if (this.truthy(subscribeFlag) && me === receiverId) {
-            const exists = await this.prisma.subscriber.findFirst({
-                where: { subscriberId: senderId, ownerId: receiverId },
-            });
-            if (!exists) {
-                await this.prisma.subscriber.create({ data: { subscriberId: senderId, ownerId: receiverId } });
-            }
-            const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
-            const receiver = await this.prisma.user.findUnique({ where: { id: receiverId } });
-            this.rt.emitToLegacyUserRoom(receiverId, 'new_subscriber', {
-                subscriber_id: senderId,
-                subscriber_username: sender?.username,
-                subscriber_avatar: sender?.avatarUrl ?? null,
-            });
-            this.rt.emitToLegacyUserRoom(senderId, 'subscribed_to', {
-                user_id: receiverId,
-                username: receiver?.username,
-                avatar: receiver?.avatarUrl ?? null,
-            });
-        }
-        await this.prisma.friendRequest.delete({ where: { id: requestId } });
-        this.rt.emitToLegacyUserRoom(senderId, 'friend_request_cancelled', { request_id: requestId });
-        this.rt.emitToLegacyUserRoom(receiverId, 'friend_request_cancelled', { request_id: requestId });
-        return { ok: true, message: 'Заявка отменена' };
-    }
-    async acceptFriendRequest(requestId, me) {
-        const fr = await this.prisma.friendRequest.findUnique({ where: { id: requestId } });
-        if (!fr)
-            throw new common_1.BadRequestException('Заявка не найдена');
-        if (fr.receiverId !== me)
-            throw new common_1.ForbiddenException();
-        if (fr.status !== client_1.FriendRequestStatus.PENDING)
-            return { ok: true, message: 'Уже обработано' };
-        await this.prisma.friendRequest.update({
-            where: { id: fr.id },
-            data: { status: client_1.FriendRequestStatus.ACCEPTED },
-        });
-        await this.prisma.subscriber.deleteMany({
-            where: {
-                OR: [
-                    { ownerId: fr.senderId, subscriberId: fr.receiverId },
-                    { ownerId: fr.receiverId, subscriberId: fr.senderId },
-                ],
-            },
-        });
-        this.rt.emitToLegacyUserRoom(fr.senderId, 'friend_accepted', { request_id: fr.id });
-        this.rt.emitToLegacyUserRoom(fr.receiverId, 'friend_accepted', { request_id: fr.id });
-        this.rt.emitToLegacyUserRoom(fr.senderId, 'subscribers_refresh', {});
-        this.rt.emitToLegacyUserRoom(fr.receiverId, 'subscribers_refresh', {});
-        await this.prisma.potentialFriendView.deleteMany({
-            where: {
-                OR: [
-                    { viewerId: fr.senderId, userId: fr.receiverId },
-                    { viewerId: fr.receiverId, userId: fr.senderId },
-                ],
-            },
-        });
-        return { ok: true, message: 'Заявка принята' };
-    }
-    async removeFriend(targetId, me) {
-        const fr = await this.prisma.friendRequest.findFirst({
-            where: {
-                status: client_1.FriendRequestStatus.ACCEPTED,
-                OR: [
-                    { senderId: me, receiverId: targetId },
-                    { senderId: targetId, receiverId: me },
-                ],
-            },
-        });
-        if (fr) {
-            await this.prisma.friendRequest.delete({ where: { id: fr.id } });
-            this.rt.emitToLegacyUserRoom(targetId, 'friend_removed', { user_id: me });
-        }
-        return { ok: true, message: 'Удалено из друзей' };
-    }
-    async removePossibleFriend(targetId, me) {
-        await this.prisma.potentialFriendView.deleteMany({
-            where: { viewerId: me, userId: targetId },
-        });
-        return { ok: true };
-    }
-    async subscribe(targetId, me, meUsername) {
-        if (me === targetId)
-            throw new common_1.BadRequestException('Нельзя подписаться на себя');
-        const exists = await this.prisma.subscriber.findFirst({
-            where: { subscriberId: me, ownerId: targetId },
-        });
-        if (exists)
-            return { ok: true, message: 'Уже подписаны' };
-        if (await this.areFriends(me, targetId)) {
-            throw new common_1.BadRequestException('Вы уже друзья — подписка не нужна');
-        }
-        await this.prisma.subscriber.create({ data: { subscriberId: me, ownerId: targetId } });
-        const meUser = await this.prisma.user.findUnique({ where: { id: me } });
-        const targetUser = await this.prisma.user.findUnique({ where: { id: targetId } });
-        this.rt.emitToLegacyUserRoom(targetId, 'new_subscriber', {
-            subscriber_id: me,
-            subscriber_username: meUsername ?? meUser?.username,
-            subscriber_avatar: meUser?.avatarUrl ?? null,
-        });
-        this.rt.emitToLegacyUserRoom(me, 'subscribed_to', {
-            user_id: targetId,
-            username: targetUser?.username,
-            avatar: targetUser?.avatarUrl ?? null,
-        });
-        return { ok: true, message: 'Подписка оформлена' };
-    }
-    async cleanupPotentialFriends(minutes, me) {
-        const threshold = new Date(Date.now() - minutes * 60 * 1000);
-        await this.prisma.potentialFriendView.deleteMany({
-            where: { viewerId: me, timestamp: { lt: threshold } },
-        });
-        return { ok: true };
-    }
-    async leaveInSubscribers(targetId, me) {
-        if (targetId === me)
+        if (isFriend)
             return { ok: true };
-        const exists = await this.prisma.subscriber.findFirst({
-            where: { subscriberId: targetId, ownerId: me },
-        });
-        if (!exists) {
-            await this.prisma.subscriber.create({ data: { subscriberId: targetId, ownerId: me } });
+        try {
+            await this.prisma.subscriber.create({ data: { subscriberId: userId, ownerId: targetUserId } });
         }
+        catch (e) {
+            if (!this.isUniqueError(e))
+                throw e;
+        }
+        this.notifyBoth(userId, targetUserId, 'friends:lists:refresh');
         return { ok: true };
+    }
+    async unsubscribe(userId, targetUserId) {
+        await this.prisma.subscriber.deleteMany({ where: { subscriberId: userId, ownerId: targetUserId } });
+        this.notifyBoth(userId, targetUserId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async dismiss(userId, targetUserId) {
+        await this.prisma.potentialFriendView.deleteMany({ where: { viewerId: userId, userId: targetUserId } });
+        this.notifyOne(userId, 'friends:lists:refresh');
+        return { ok: true };
+    }
+    async ensureSubscription(subscriberId, ownerId) {
+        if (subscriberId === ownerId)
+            return;
+        try {
+            await this.prisma.subscriber.create({ data: { subscriberId, ownerId } });
+        }
+        catch (e) {
+            if (!this.isUniqueError(e))
+                throw e;
+        }
     }
 };
 exports.FriendsService = FriendsService;

@@ -41,6 +41,39 @@ let RealtimeGateway = class RealtimeGateway {
     emitToLegacyUserRoom(userId, event, payload) {
         this.server.to(`user_${userId}`).emit(event, payload);
     }
+    emitToUser(userId, event, payload) {
+        const room = `user:${userId}`;
+        this.server.to(room).emit(event, payload ?? {});
+    }
+    emitToUsers(userIds, event, payload = {}) {
+        if (!this.server || !userIds?.length)
+            return;
+        const rooms = [];
+        for (const id of userIds) {
+            rooms.push(`u:${id}`, `${id}`);
+        }
+        try {
+            this.server.to(rooms).emit(event, payload);
+        }
+        catch { }
+        try {
+            const ids = new Set(userIds.map(String));
+            const sockets = this.server.sockets?.sockets ?? new Map();
+            for (const [, s] of sockets) {
+                const sid = s.data?.userId ??
+                    s.data?.uid ??
+                    s.handshake?.auth?.userId ??
+                    s.handshake?.query?.userId;
+                if (sid != null && ids.has(String(sid))) {
+                    s.emit(event, payload);
+                }
+            }
+        }
+        catch { }
+    }
+    emitAll(event, payload = {}) {
+        this.server?.emit(event, payload);
+    }
 };
 exports.RealtimeGateway = RealtimeGateway;
 __decorate([

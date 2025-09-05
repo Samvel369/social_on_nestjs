@@ -1,137 +1,148 @@
-// my_actions.js — шаг 2: обновление DOM без перезагрузки
+(() => {
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const draftsBox = $('#drafts-list');
+  const publishedBox = $('#published-list');
+  const form = $('#create-action-form');
+  const input = $('#new-action-text');
 
-console.log('my_actions.js loaded');
+  const notify = (msg, type = 'success') => {
+    if (window.showNotification) return window.showNotification(msg, type);
+    console[type === 'error' ? 'error' : 'log'](msg);
+  };
 
-function getCsrfToken() {
-  const meta = document.querySelector('meta[name="csrf-token"]');
-  return meta ? meta.getAttribute('content') : null;
-}
-function ok(m){ if (window.showNotification) showNotification(m || 'Готово', 'success'); }
-function err(m){ if (window.showNotification) showNotification(m || 'Ошибка', 'error'); }
-
-async function postForm(url, formData) {
-  const headers = {};
-  const csrf = getCsrfToken();
-  if (csrf) headers['X-CSRFToken'] = csrf;
-
-  const res = await fetch(url, { method: 'POST', headers, body: formData });
-  let data;
-  try { data = await res.json(); } catch { throw new Error('Некорректный ответ сервера'); }
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.message || 'Ошибка запроса');
+  async function post(url, body) {
+    const opts = { method: 'POST' };
+    if (body instanceof FormData) {
+      opts.body = body;
+    } else if (body) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+      notify(`Ошибка: ${res.status} ${res.statusText}`, 'error');
+      throw new Error('Request failed');
+    }
+    try { return await res.json(); } catch { return {}; }
   }
-  return data; // { ok, message, data: {...} }
-}
 
-// Рендер одной карточки (минимально — как в шаблоне)
-function renderDraftItem(a) {
-  const div = document.createElement('div');
-  div.className = 'action-item';
-  div.dataset.id = a.id;
-  div.innerHTML = `
-    <span class="action-title" data-action-id="${a.id}">${escapeHtml(a.text)}</span>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="delete_id" value="${a.id}">
-      <button type="submit">Удалить</button>
-    </form>
+  async function refresh() {
+    const res = await fetch('/api/my-actions');
+    const data = await res.json();
+    renderDrafts(data.drafts || []);
+    renderPublished(data.published || []);
+  }
 
-    <select name="duration" required>
-      <option value="10">10 мин</option>
-      <option value="30">30 мин</option>
-      <option value="60">1 час</option>
-    </select>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="publish_id" value="${a.id}">
-      <button type="submit">Опубликовать</button>
-    </form>
-  `;
-  return div;
-}
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]
+    ));
+  }
 
-function renderPublishedItem(a) {
-  const div = document.createElement('div');
-  div.className = 'action-item';
-  div.dataset.id = a.id;
-  const expires = a.expires_at ? new Date(a.expires_at) : null;
-  const fmt = expires ? fmtDate(expires) : '—';
+  function renderDrafts(list) {
+    if (!draftsBox) return;
+    draftsBox.innerHTML = '';
+    if (!list.length) {
+      draftsBox.innerHTML = '<p id="no-drafts">Нет черновиков</p>';
+      return;
+    }
+    for (const d of list) {
+      const el = document.createElement('div');
+      el.className = 'action-item';
+      el.dataset.id = d.id;
+      el.innerHTML = `
+        <a href="/api/actions/action_card/${d.id}">${escapeHtml(d.text)}</a>
+        <button type="button" class="delete-btn">Удалить</button>
+        <select class="duration">
+          <option value="10">10 мин</option>
+          <option value="30">30 мин</option>
+          <option value="60">1 час</option>
+        </select>
+        <button type="button" class="publish-btn">Опубликовать</button>
+      `;
+      draftsBox.appendChild(el);
+    }
+  }
 
-  div.innerHTML = `
-    <span class="action-title" data-action-id="${a.id}">${escapeHtml(a.text)}</span>
-    <small>Действует до: ${fmt}</small>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="delete_id" value="${a.id}">
-      <button type="submit">Удалить</button>
-    </form>
-  `;
-  return div;
-}
+  function renderPublished(list) {
+    if (!publishedBox) return;
+    publishedBox.innerHTML = '';
+    if (!list.length) {
+      publishedBox.innerHTML = '<p id="no-published">Нет опубликованных действий</p>';
+      return;
+    }
+    for (const a of list) {
+      const el = document.createElement('div');
+      el.className = 'action-item';
+      el.dataset.id = a.id;
+      el.innerHTML = `
+        <a href="/api/actions/action_card/${a.id}">${escapeHtml(a.text)}</a>
+        <small>Действует до: ${a.expiresAt ?? '—'}</small>
+        <button type="button" class="delete-btn">Удалить</button>
+      `;
+      publishedBox.appendChild(el);
+    }
+  }
 
-function fmtDate(d) {
-  const pad = (n)=> String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-const draftsList = document.getElementById('drafts-list');
-const publishedList = document.getElementById('published-list');
-
-// Перехватываем submit на всей странице /my_actions
-if ((location.pathname.includes('/api/my-actions') || location.pathname.includes('/my-actions'))) {
-  document.addEventListener('submit', async (e) => {
-    const form = e.target;
-    if (!(form instanceof HTMLFormElement)) return;
-
-    const isCreate = !!form.querySelector('input[name="text"]') || !!form.querySelector('input[name="new_action"]');
-    const del = form.querySelector('input[name="delete_id"]');
-    const pub = form.querySelector('input[name="publish_id"]');
-    if (!isCreate && !del && !pub) return;
-
+  // создание (submit ловит и Enter)
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    const fd = new FormData(form);
-
-    // Если это публикация — гарантируем наличие duration
-    if (pub && !fd.has('duration')) {
-        const inForm = form.querySelector('select[name="duration"]');
-        const nearby = form.closest('.action-item')?.querySelector('select[name="duration"]');
-        const sel = inForm || nearby;
-        if (sel && sel.value) {
-        fd.append('duration', sel.value);
-        }
-    }
-
-    const url = form.getAttribute('action') || '/api/my-actions/new';
-
+    const text = input.value.trim();
+    if (!text) return;
     try {
-        const resp = await postForm(url, fd);
-        if (resp.message) ok(resp.message);
+      const data = await post('/api/my-actions/new', { text });
+      if (data?.message) notify(data.message, data.ok ? 'success' : 'error');
+      else notify('Действие создано');
+      input.value = '';
+      await refresh();
+    } catch {}
+  });
 
-        if (isCreate && resp.data?.action) {
-        const item = renderDraftItem(resp.data.action);
-        document.getElementById('drafts-list')?.prepend(item);
-        const input = form.querySelector('input[name="new_action"]');
-        if (input) input.value = '';
-        return;
-        }
+  // делегирование кликов в блоке черновиков
+  draftsBox?.addEventListener('click', async (e) => {
+    const item = e.target.closest('.action-item');
+    if (!item) return;
+    const id = Number(item.dataset.id);
 
-        if (del && resp.data?.id) {
-        document.querySelector(`.action-item[data-id="${resp.data.id}"]`)?.remove();
-        return;
-        }
-
-        if (pub && resp.data?.action) {
-        const id = resp.data.action.id;
-        document.querySelector(`.action-item[data-id="${id}"]`)?.remove();
-        const pubEl = renderPublishedItem(resp.data.action);
-        document.getElementById('published-list')?.prepend(pubEl);
-        return;
-        }
-
-    } catch (e2) {
-        console.error(e2);
-        err(e2.message || 'Ошибка');
+    if (e.target.classList.contains('delete-btn')) {
+      if (!confirm('Удалить действие?')) return;
+      try {
+        await post(`/api/my-actions/delete/${id}`);
+        await refresh();
+      } catch {}
     }
-    }, true);
-}
+
+    if (e.target.classList.contains('publish-btn')) {
+      const sel = item.querySelector('.duration');
+      const duration = Number(sel?.value || 10);
+      try {
+        await post('/api/my-actions/publish', { id, duration });
+        notify('Опубликовано');
+        await refresh();
+      } catch {}
+    }
+  });
+
+  // делегирование кликов в опубликованных
+  publishedBox?.addEventListener('click', async (e) => {
+    const item = e.target.closest('.action-item');
+    if (!item) return;
+    const id = Number(item.dataset.id);
+
+    if (e.target.classList.contains('delete-btn')) {
+      if (!confirm('Удалить действие?')) return;
+      try {
+        await post(`/api/my-actions/delete/${id}`);
+        await refresh();
+      } catch {}
+    }
+  });
+
+  // обновляться по сокету (если подключён)
+  if (window.io) {
+    const s = window.socket || window.io();
+    s.on('my-actions:changed', () => refresh());
+  }
+
+  refresh();
+})();

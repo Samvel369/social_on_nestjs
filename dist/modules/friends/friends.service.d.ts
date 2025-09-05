@@ -1,188 +1,91 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 export declare class FriendsService {
-    private prisma;
-    private rt;
+    private readonly prisma;
+    private readonly rt;
     constructor(prisma: PrismaService, rt: RealtimeGateway);
-    private areFriends;
-    private truthy;
-    friendsPage(userId: number, minutesFromSession?: number): Promise<{
-        users: {
+    private mapUser;
+    private notifyOne;
+    private notifyBoth;
+    private assertUserExists;
+    private isUniqueError;
+    getPossible(viewerId: number, keepMinutes?: number): Promise<{
+        id: number;
+        username: string;
+        avatar_url: string;
+    }[]>;
+    getIncoming(userId: number): Promise<{
+        id: number;
+        sender: {
+            id: number;
             username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
+            avatar_url: string;
+        };
+    }[]>;
+    getOutgoing(userId: number): Promise<{
+        id: number;
+        receiver: {
             id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-        friends: {
             username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-        incoming_requests: ({
-            sender: {
-                username: string;
-                email: string;
-                password: string;
-                birthdate: Date | null;
-                id: number;
-                lastActive: Date;
-                avatarUrl: string;
-                status: string;
-                about: string;
-            };
-        } & {
-            id: number;
-            status: import(".prisma/client").$Enums.FriendRequestStatus;
-            timestamp: Date;
-            senderId: number;
-            receiverId: number;
-        })[];
-        outgoing_requests: ({
-            receiver: {
-                username: string;
-                email: string;
-                password: string;
-                birthdate: Date | null;
-                id: number;
-                lastActive: Date;
-                avatarUrl: string;
-                status: string;
-                about: string;
-            };
-        } & {
-            id: number;
-            status: import(".prisma/client").$Enums.FriendRequestStatus;
-            timestamp: Date;
-            senderId: number;
-            receiverId: number;
-        })[];
-        subscribers: {
-            username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-        subscriptions: {
-            username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-        cleanup_time: number;
-    }>;
-    private _collectFriendsPageData;
-    partialIncoming(userId: number): Promise<{
-        incoming_requests: {
-            id: number;
-            status: import(".prisma/client").$Enums.FriendRequestStatus;
-            timestamp: Date;
-            senderId: number;
-            receiverId: number;
-        }[];
-    }>;
-    partialOutgoing(userId: number): Promise<{
-        outgoing_requests: {
-            id: number;
-            status: import(".prisma/client").$Enums.FriendRequestStatus;
-            timestamp: Date;
-            senderId: number;
-            receiverId: number;
-        }[];
-    }>;
-    partialFriends(userId: number): Promise<{
-        friends: {
-            username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-    }>;
-    partialSubscribers(userId: number): Promise<{
-        subscribers: {
-            username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-    }>;
-    partialSubscriptions(userId: number): Promise<{
-        subscriptions: {
-            username: string;
-            email: string;
-            password: string;
-            birthdate: Date | null;
-            id: number;
-            lastActive: Date;
-            avatarUrl: string;
-            status: string;
-            about: string;
-        }[];
-    }>;
-    sendFriendRequest(targetId: number, me: number, meUsername: string): Promise<{
+            avatar_url: string;
+        };
+    }[]>;
+    getFriends(userId: number): Promise<{
+        id: number;
+        username: string;
+        avatar_url: string;
+    }[]>;
+    getSubscribers(userId: number): Promise<{
+        id: number;
+        username: string;
+        avatar_url: string;
+    }[]>;
+    getSubscriptions(userId: number): Promise<{
+        id: number;
+        username: string;
+        avatar_url: string;
+    }[]>;
+    sendFriendRequest(userId: number, toUserId: number): Promise<{
         ok: boolean;
-        message: string;
-        data?: undefined;
+        alreadyFriends: boolean;
+        duplicatePending?: undefined;
+        autoAccepted?: undefined;
     } | {
         ok: boolean;
-        message: string;
-        data: {
-            request_id: number;
-        };
-    }>;
-    cancelFriendRequest(requestId: number, me: number, subscribeFlag: string | undefined): Promise<{
+        duplicatePending: boolean;
+        alreadyFriends?: undefined;
+        autoAccepted?: undefined;
+    } | {
         ok: boolean;
-        message: string;
-    }>;
-    acceptFriendRequest(requestId: number, me: number): Promise<{
+        autoAccepted: boolean;
+        alreadyFriends?: undefined;
+        duplicatePending?: undefined;
+    } | {
         ok: boolean;
-        message: string;
+        alreadyFriends?: undefined;
+        duplicatePending?: undefined;
+        autoAccepted?: undefined;
     }>;
-    removeFriend(targetId: number, me: number): Promise<{
-        ok: boolean;
-        message: string;
-    }>;
-    removePossibleFriend(targetId: number, me: number): Promise<{
+    acceptFriendRequest(userId: number, requestId: number): Promise<{
         ok: boolean;
     }>;
-    subscribe(targetId: number, me: number, meUsername: string): Promise<{
-        ok: boolean;
-        message: string;
-    }>;
-    cleanupPotentialFriends(minutes: number, me: number): Promise<{
+    cancelFriendRequest(userId: number, requestId: number, subscribe?: boolean): Promise<{
         ok: boolean;
     }>;
-    leaveInSubscribers(targetId: number, me: number): Promise<{
+    leaveAsSubscriber(userId: number, requestId: number): Promise<{
         ok: boolean;
     }>;
+    removeFriend(userId: number, otherId: number): Promise<{
+        ok: boolean;
+    }>;
+    subscribe(userId: number, targetUserId: number): Promise<{
+        ok: boolean;
+    }>;
+    unsubscribe(userId: number, targetUserId: number): Promise<{
+        ok: boolean;
+    }>;
+    dismiss(userId: number, targetUserId: number): Promise<{
+        ok: boolean;
+    }>;
+    private ensureSubscription;
 }

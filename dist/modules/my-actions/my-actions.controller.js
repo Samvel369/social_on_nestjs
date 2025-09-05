@@ -27,28 +27,42 @@ let MyActionsController = class MyActionsController {
             id: user.userId,
             userId: user.userId,
             username: user.username,
-            avatar_url: user.avatarUrl ?? '',
+            avatar_url: user?.avatarUrl ?? '',
         };
-        const drafts = [];
-        const published = [];
+        const [drafts, published] = await Promise.all([
+            this.service.getDrafts(user.userId),
+            this.service.getPublished(user.userId),
+        ]);
         const total_users = 0;
         const online_users = 0;
         return { current_user, drafts, published, total_users, online_users };
     }
+    async list(user) {
+        const [drafts, published] = await Promise.all([
+            this.service.getDrafts(user.userId),
+            this.service.getPublished(user.userId),
+        ]);
+        return { drafts, published };
+    }
     async create(user, dto) {
-        return this.service.createDraft(user.userId, dto);
+        const action = await this.service.createDraft(user.userId, dto);
+        return { ok: true, action };
     }
     async publish(user, dto) {
-        return this.service.publishAction(user.userId, dto);
+        await this.service.publishAction(user.userId, dto);
+        return { ok: true };
     }
-    async publishByPath(user, id, duration) {
-        return this.service.publishAction(user.userId, { id, duration });
+    async deleteBody(user, dto) {
+        await this.service.deleteAction(user.userId, dto.id);
+        return { ok: true };
     }
-    async delete(user, dto) {
-        return this.service.deleteAction(user.userId, dto.id);
+    async deleteByPost(user, id) {
+        await this.service.deleteAction(user.userId, id);
+        return { ok: true };
     }
-    async deleteByPath(user, id) {
-        return this.service.deleteAction(user.userId, id);
+    async deleteByDelete(user, id) {
+        await this.service.deleteAction(user.userId, id);
+        return { ok: true };
     }
 };
 exports.MyActionsController = MyActionsController;
@@ -60,6 +74,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], MyActionsController.prototype, "view", null);
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MyActionsController.prototype, "list", null);
 __decorate([
     (0, common_1.Post)('new'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -77,22 +98,13 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MyActionsController.prototype, "publish", null);
 __decorate([
-    (0, common_1.Post)('publish/:id/:duration'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Param)('duration', common_1.ParseIntPipe)),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Number, Number]),
-    __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "publishByPath", null);
-__decorate([
     (0, common_1.Post)('delete'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, my_actions_dto_1.DeleteActionDto]),
     __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "delete", null);
+], MyActionsController.prototype, "deleteBody", null);
 __decorate([
     (0, common_1.Post)('delete/:id'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -100,7 +112,15 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Number]),
     __metadata("design:returntype", Promise)
-], MyActionsController.prototype, "deleteByPath", null);
+], MyActionsController.prototype, "deleteByPost", null);
+__decorate([
+    (0, common_1.Delete)('delete/:id'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", Promise)
+], MyActionsController.prototype, "deleteByDelete", null);
 exports.MyActionsController = MyActionsController = __decorate([
     (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('my-actions'),

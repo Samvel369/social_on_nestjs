@@ -5,80 +5,84 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Delete,
   UseGuards,
   Render,
 } from '@nestjs/common';
 import { MyActionsService } from './my-actions.service';
-import {
-  CreateActionDto,
-  DeleteActionDto,
-  PublishActionDto,
-} from './my-actions.dto';
+import { CreateActionDto, PublishActionDto, DeleteActionDto } from './my-actions.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 
-@UseGuards(JwtAuthGuard) // весь контроллер приватный
+@UseGuards(JwtAuthGuard)
 @Controller('my-actions')
 export class MyActionsController {
   constructor(private readonly service: MyActionsService) {}
 
-  // ===== HTML =====
+  // HTML
   @Get('view')
   @Render('my_actions.html')
   async view(@CurrentUser() user: AuthUser) {
-    // ключевая правка: берём аватар из user.avatarUrl
     const current_user = {
       id: user.userId,
       userId: user.userId,
       username: user.username,
-      avatar_url: user.avatarUrl ?? '',
+      avatar_url: (user as any)?.avatarUrl ?? '',
     };
 
-    // Можно оставить пустые списки — фронт доберёт через JSON по мере надобности
-    const drafts: any[] = [];
-    const published: any[] = [];
+    const [drafts, published] = await Promise.all([
+      this.service.getDrafts(user.userId),
+      this.service.getPublished(user.userId),
+    ]);
+
     const total_users = 0;
     const online_users = 0;
 
     return { current_user, drafts, published, total_users, online_users };
   }
 
-  // ===== JSON API =====
+  // JSON (для ajax-перерисовки списков)
+  @Get()
+  async list(@CurrentUser() user: AuthUser) {
+    const [drafts, published] = await Promise.all([
+      this.service.getDrafts(user.userId),
+      this.service.getPublished(user.userId),
+    ]);
+    return { drafts, published };
+  }
 
-  /** Создать черновик (ожидает тело с { text: string }) */
+  // Создать черновик
   @Post('new')
   async create(@CurrentUser() user: AuthUser, @Body() dto: CreateActionDto) {
-    return this.service.createDraft(user.userId, dto);
+    const action = await this.service.createDraft(user.userId, dto);
+    return { ok: true, action };
   }
 
-  /** Опубликовать черновик (ожидает тело с { id: number, duration: number }) */
+  // Опубликовать
   @Post('publish')
   async publish(@CurrentUser() user: AuthUser, @Body() dto: PublishActionDto) {
-    return this.service.publishAction(user.userId, dto);
+    await this.service.publishAction(user.userId, dto);
+    return { ok: true };
   }
 
-  /** Опубликовать черновик (через путь) */
-  @Post('publish/:id/:duration')
-  async publishByPath(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseIntPipe) id: number,
-    @Param('duration', ParseIntPipe) duration: number,
-  ) {
-    return this.service.publishAction(user.userId, { id, duration });
-  }
-
-  /** Удалить (id в теле) */
+  // Удалить (телом)
   @Post('delete')
-  async delete(@CurrentUser() user: AuthUser, @Body() dto: DeleteActionDto) {
-    return this.service.deleteAction(user.userId, dto.id);
+  async deleteBody(@CurrentUser() user: AuthUser, @Body() dto: DeleteActionDto) {
+    await this.service.deleteAction(user.userId, dto.id);
+    return { ok: true };
   }
 
-  /** Удалить (id в пути) */
+  // Удалить (из form POST /delete/:id)
   @Post('delete/:id')
-  async deleteByPath(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    return this.service.deleteAction(user.userId, id);
+  async deleteByPost(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    await this.service.deleteAction(user.userId, id);
+    return { ok: true };
+  }
+
+  // Удалить (REST)
+  @Delete('delete/:id')
+  async deleteByDelete(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    await this.service.deleteAction(user.userId, id);
+    return { ok: true };
   }
 }

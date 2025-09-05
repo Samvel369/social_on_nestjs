@@ -11,15 +11,16 @@ const common_1 = require("@nestjs/common");
 const friends_controller_1 = require("./friends.controller");
 const friends_service_1 = require("./friends.service");
 const prisma_module_1 = require("../../prisma/prisma.module");
-const gateways_module_1 = require("../../gateways/gateways.module");
+const realtime_gateway_1 = require("../../gateways/realtime.gateway");
 let FriendsModule = class FriendsModule {
 };
 exports.FriendsModule = FriendsModule;
 exports.FriendsModule = FriendsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, gateways_module_1.GatewaysModule],
+        imports: [prisma_module_1.PrismaModule],
         controllers: [friends_controller_1.FriendsController],
-        providers: [friends_service_1.FriendsService],
+        providers: [friends_service_1.FriendsService, realtime_gateway_1.RealtimeGateway],
+        exports: [friends_service_1.FriendsService],
     })
 ], FriendsModule);
 //# sourceMappingURL=friends.module.js.map

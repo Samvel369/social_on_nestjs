@@ -7,85 +7,85 @@ export declare class WorldService {
     constructor(prisma: PrismaService, rt: RealtimeGateway);
     getWorld(userId: number): Promise<{
         daily: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
+            normalizedText: string;
             isPublished: boolean;
             isDaily: boolean;
             createdAt: Date;
             expiresAt: Date | null;
-            normalizedText: string;
         }[];
         drafts: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
+            normalizedText: string;
             isPublished: boolean;
             isDaily: boolean;
             createdAt: Date;
             expiresAt: Date | null;
-            normalizedText: string;
         }[];
         published: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
+            normalizedText: string;
             isPublished: boolean;
             isDaily: boolean;
             createdAt: Date;
             expiresAt: Date | null;
-            normalizedText: string;
         }[];
     }>;
     createDaily(dto: CreateActionDto): Promise<{
+        userId: number;
         id: number;
-        userId: number | null;
         text: string;
+        normalizedText: string;
         isPublished: boolean;
         isDaily: boolean;
         createdAt: Date;
         expiresAt: Date | null;
-        normalizedText: string;
     }>;
     createDraft(userId: number, dto: CreateActionDto): Promise<{
+        userId: number;
         id: number;
-        userId: number | null;
         text: string;
+        normalizedText: string;
         isPublished: boolean;
         isDaily: boolean;
         createdAt: Date;
         expiresAt: Date | null;
-        normalizedText: string;
     }>;
     editAction(userId: number, actionId: number, dto: EditActionDto): Promise<{
+        userId: number;
         id: number;
-        userId: number | null;
         text: string;
+        normalizedText: string;
         isPublished: boolean;
         isDaily: boolean;
         createdAt: Date;
         expiresAt: Date | null;
-        normalizedText: string;
     }>;
     deleteAction(userId: number, actionId: number): Promise<{
+        userId: number;
         id: number;
-        userId: number | null;
         text: string;
+        normalizedText: string;
         isPublished: boolean;
         isDaily: boolean;
         createdAt: Date;
         expiresAt: Date | null;
-        normalizedText: string;
     }>;
     publishAction(userId: number, actionId: number, dto: PublishActionDto): Promise<{
+        userId: number;
         id: number;
-        userId: number | null;
         text: string;
+        normalizedText: string;
         isPublished: boolean;
         isDaily: boolean;
         createdAt: Date;
         expiresAt: Date | null;
-        normalizedText: string;
     }>;
     getPublished(): Promise<{
         id: number;

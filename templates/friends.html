@@ -1,233 +1,44 @@
-{% extends "base.html" %}
-{% block title %}Друзья{% endblock %}
-
+{% extends 'base.html' %}
 {% block content %}
-<div style="display:flex; flex-direction:column; gap:30px;">
 
-  <!-- Возможные друзья -->
-  <section>
-    <h2>Возможные друзья:</h2>
+<h2>Возможные друзья:</h2>
+<form style="margin:8px 0">
+  <label>Удалять из списка через:</label>
+  <select id="cleanup-time">
+    <option value="10" {% if keep_minutes == 10 %}selected{% endif %}>10 мин</option>
+    <option value="30" {% if keep_minutes == 30 %}selected{% endif %}>30 мин</option>
+    <option value="60" {% if keep_minutes == 60 %}selected{% endif %}>1 час</option>
+  </select>
+</form>
 
-    <div style="margin: 10px 0;">
-      <label for="cleanup-time">Удалять из списка через:</label>
-      <select id="cleanup-time">
-        <option value="10" {% if cleanup_time == 10 %}selected{% endif %}>10 мин</option>
-        <option value="30" {% if cleanup_time == 30 %}selected{% endif %}>30 мин</option>
-        <option value="60" {% if cleanup_time == 60 %}selected{% endif %}>1 час</option>
-      </select>
-    </div>
-
-    <div id="possible-friends-list">
-      {% if possible_friends and possible_friends.length %}
-        {% for pf in possible_friends %}
-          <div style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if pf.avatar_url %}
-              <img src="/uploads/{{ (pf.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-            <div style="flex:1;">
-              <strong>{{ pf.username }}</strong>
-            </div>
-            <button type="button" class="btn-subscribe" data-user-id="{{ pf.id }}">Подписаться</button>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p>Список формируется автоматически.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <hr>
-
-  <!-- Входящие заявки -->
-  <section>
-    <h2>Входящие заявки:</h2>
-    <div id="requests-list">
-      {% if incoming_requests and incoming_requests.length %}
-        {% for req in incoming_requests %}
-          <div data-request-id="{{ req.id }}" style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if req.sender and req.sender.avatar_url %}
-              <img src="/uploads/{{ (req.sender.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-
-            <div style="flex:1;">
-              <strong>{{ req.sender and req.sender.username or 'Пользователь' }}</strong><br>
-              <a href="/api/profile/view">Перейти в профиль</a>
-            </div>
-
-            <!-- Эти действия подключим позже через доп. эндпоинты -->
-            <button type="button" class="btn-accept-request" data-request-id="{{ req.id }}" disabled>Принять</button>
-            <button type="button" class="btn-leave" data-user-id="{{ req.sender and req.sender.id }}" title="Оставить в подписчиках">Оставить</button>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p>Нет входящих заявок.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <hr>
-
-  <!-- Исходящие заявки -->
-  <section>
-    <h2>Исходящие заявки:</h2>
-    <div id="outgoing-requests">
-      {% if outgoing_requests and outgoing_requests.length %}
-        {% for req in outgoing_requests %}
-          <div data-request-id="{{ req.id }}" style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if req.receiver and req.receiver.avatar_url %}
-              <img src="/uploads/{{ (req.receiver.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-            <div style="flex:1;">
-              <strong>{{ req.receiver and req.receiver.username or 'Пользователь' }}</strong><br>
-              <a href="/api/profile/view">Перейти в профиль</a>
-            </div>
-            <!-- Подключим позже -->
-            <button type="button" class="btn-cancel-request" data-request-id="{{ req.id }}" disabled>Отменить заявку</button>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p>Нет исходящих заявок.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <hr>
-
-  <!-- Друзья -->
-  <section>
-    <h2>Мои друзья:</h2>
-    <div id="friends-list">
-      {% if friends and friends.length %}
-        {% for u in friends %}
-          <div style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if u.avatar_url %}
-              <img src="/uploads/{{ (u.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-            <div style="flex:1;">
-              <strong>{{ u.username }}</strong><br>
-              <a href="/api/profile/view">Перейти в профиль</a>
-            </div>
-            <!-- Подключим позже -->
-            <button type="button" class="btn-remove-friend" data-user-id="{{ u.id }}" disabled>Удалить из друзей</button>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p id="no-friends-msg">Пока нет друзей.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <hr>
-
-  <!-- Подписчики -->
-  <section>
-    <h2>Подписчики:</h2>
-    <div id="subscribers-list">
-      {% if subscribers and subscribers.length %}
-        {% for s in subscribers %}
-          <div style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if s.avatar_url %}
-              <img src="/uploads/{{ (s.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-            <div style="flex:1;">
-              <strong>{{ s.username }}</strong><br>
-              <a href="/api/profile/view">Перейти в профиль</a>
-            </div>
-            <button type="button" class="btn-leave" data-user-id="{{ s.id }}">Оставить в подписчиках</button>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p id="no-subscribers-msg">Нет подписчиков.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <!-- Подписки -->
-  <section>
-    <h2>Подписан на:</h2>
-    <div id="subscriptions-list">
-      {% if subscriptions and subscriptions.length %}
-        {% for u in subscriptions %}
-          <div style="display:flex;align-items:center;margin-bottom:16px;">
-            {% if u.avatar_url %}
-              <img src="/uploads/{{ (u.avatar_url | replace('static/uploads/','') | replace('/uploads/','')) }}"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% else %}
-              <img src="/static/default-avatar.png"
-                   alt="avatar" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-right:12px;">
-            {% endif %}
-            <div style="flex:1;">
-              <strong>{{ u.username }}</strong><br>
-              <a href="/api/profile/view">Перейти в профиль</a>
-            </div>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p id="no-subscriptions-msg">Вы ни на кого не подписаны.</p>
-      {% endif %}
-    </div>
-  </section>
-
+<div id="possible-friends-list">
+  {% include 'partials/possible_friends.html' %}
 </div>
 
-<!-- Мини-скрипты только под уже существующие ручки -->
-<script>
-  // смена времени очистки
-  document.addEventListener('change', (e) => {
-    if (e.target.matches('#cleanup-time')) {
-      const minutes = parseInt(e.target.value, 10) || 10;
-      fetch('/api/friends/cleanup_potential_friends', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minutes })
-      }).catch(()=>{});
-    }
-  });
+<hr>
 
-  // подписаться
-  document.addEventListener('click', (e) => {
-    const sub = e.target.closest('.btn-subscribe');
-    if (sub) {
-      const id = sub.dataset.userId;
-      fetch(`/api/friends/subscribe/${id}`, { method: 'POST', credentials: 'include' })
-        .then(() => location.reload())
-        .catch(()=>{});
-    }
-  });
+<h2>Входящие заявки:</h2>
+<div id="incoming-requests">{% include 'partials/incoming_requests.html' %}</div>
 
-  // оставить в подписчиках
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-leave');
-    if (btn) {
-      const id = btn.dataset.userId;
-      fetch(`/api/friends/leave_in_subscribers/${id}`, { method: 'POST', credentials: 'include' })
-        .then(() => location.reload())
-        .catch(()=>{});
-    }
-  });
-</script>
+<hr>
 
-<script src="/static/js/socket.js"></script>
+<h2>Исходящие заявки:</h2>
+<div id="outgoing-requests">{% include 'partials/outgoing_requests.html' %}</div>
+
+<hr>
+
+<h2>Мои друзья:</h2>
+<div id="friends-list">{% include 'partials/friends_list.html' %}</div>
+
+<hr>
+
+<h2>Подписчики:</h2>
+<div id="subscribers-list">{% include 'partials/subscribers.html' %}</div>
+
+<hr>
+
+<h2>Подписан на:</h2>
+<div id="subscriptions-list">{% include 'partials/subscriptions.html' %}</div>
+
 <script src="/static/js/friends.js"></script>
 {% endblock %}

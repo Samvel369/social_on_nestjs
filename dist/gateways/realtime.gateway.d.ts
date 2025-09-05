@@ -12,4 +12,7 @@ export declare class RealtimeGateway implements OnGatewayConnection, OnGatewayDi
     emitActionDeleted(id: number): void;
     notifyUser(userId: number, event: string, data: any): void;
     emitToLegacyUserRoom(userId: number, event: string, payload: any): void;
+    emitToUser(userId: number, event: string, payload?: any): void;
+    emitToUsers(userIds: Array<number | string>, event: string, payload?: any): void;
+    emitAll(event: string, payload?: any): void;
 }

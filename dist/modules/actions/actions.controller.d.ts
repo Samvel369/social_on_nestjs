@@ -5,8 +5,8 @@ export declare class ActionsController {
     constructor(actions: ActionsService);
     actionCardPage(id: string): Promise<{
         action: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
             isPublished: boolean;
             createdAt: Date;
@@ -28,8 +28,8 @@ export declare class ActionsController {
         peak: number;
     } | {
         action: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
             isPublished: boolean;
             createdAt: Date;

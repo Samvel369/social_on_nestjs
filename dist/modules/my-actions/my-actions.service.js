@@ -12,111 +12,118 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MyActionsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
-const realtime_gateway_1 = require("../../gateways/realtime.gateway");
 function normalizeText(text) {
     return text
         .toLowerCase()
         .replace(/\s+/g, ' ')
-        .replace(/[^\S\r\n]/g, ' ')
+        .replace(/[^\S\r\n]+/g, ' ')
         .trim();
 }
 let MyActionsService = class MyActionsService {
-    constructor(prisma, rt) {
+    constructor(prisma) {
         this.prisma = prisma;
-        this.rt = rt;
+    }
+    async getDrafts(userId) {
+        return this.prisma.action.findMany({
+            where: { userId, isPublished: false },
+            select: { id: true, text: true },
+            orderBy: { id: 'desc' },
+        });
+    }
+    async getPublished(userId) {
+        return this.prisma.action.findMany({
+            where: { userId, isPublished: true },
+            select: { id: true, text: true, expiresAt: true },
+            orderBy: { id: 'desc' },
+        });
     }
     async createDraft(userId, dto) {
-        const text = dto.text.trim();
-        if (!text) {
-            throw new common_1.BadRequestException('Текст не может быть пустым');
+        const text = (dto.text ?? '').trim();
+        if (!text)
+            throw new common_1.BadRequestException('text should not be empty');
+        if (text.length > 255)
+            throw new common_1.BadRequestException('text is too long');
+        const norm = normalizeText(text);
+        const now = new Date();
+        const draftExists = await this.prisma.action.findFirst({
+            where: { userId, isPublished: false, normalizedText: norm },
+            select: { id: true },
+        });
+        if (draftExists) {
+            throw new common_1.BadRequestException('Такое действие у вас уже есть.');
         }
-        const action = await this.prisma.action.create({
+        const active = await this.prisma.action.findFirst({
+            where: {
+                userId,
+                isPublished: true,
+                normalizedText: norm,
+                expiresAt: { gt: now },
+            },
+            select: { id: true },
+        });
+        if (active) {
+            throw new common_1.BadRequestException('Такое действие уже опубликовано.');
+        }
+        return this.prisma.action.create({
             data: {
                 userId,
                 text,
-                normalizedText: normalizeText(text),
+                normalizedText: norm,
                 isPublished: false,
-                isDaily: false,
             },
-            select: { id: true, text: true, isPublished: true, createdAt: true },
+            select: { id: true, text: true },
         });
-        return { ok: true, action };
-    }
-    async deleteAction(userId, id) {
-        const action = await this.prisma.action.findUnique({ where: { id } });
-        if (!action)
-            throw new common_1.NotFoundException('Действие не найдено');
-        if (action.userId !== userId)
-            throw new common_1.ForbiddenException('Вы не владелец действия');
-        await this.prisma.action.delete({ where: { id } });
-        return { ok: true };
     }
     async publishAction(userId, dto) {
         const { id, duration } = dto;
-        const action = await this.prisma.action.findUnique({ where: { id } });
-        if (!action)
-            throw new common_1.NotFoundException('Действие не найдено');
-        if (action.userId !== userId)
-            throw new common_1.ForbiddenException('Вы не владелец действия');
+        const draft = await this.prisma.action.findUnique({ where: { id } });
+        if (!draft)
+            throw new common_1.NotFoundException('Draft not found');
+        if (draft.userId !== userId)
+            throw new common_1.ForbiddenException('not your action');
+        if (draft.isPublished)
+            throw new common_1.BadRequestException('already published');
+        const norm = draft.normalizedText || normalizeText(draft.text);
         const now = new Date();
-        const expiresAt = new Date(now.getTime() + duration * 60000);
-        const normalized = action.normalizedText || normalizeText(action.text);
+        const expiresAt = new Date(now.getTime() + (duration ?? 10) * 60000);
         const duplicate = await this.prisma.action.findFirst({
             where: {
                 userId,
                 isPublished: true,
+                normalizedText: norm,
                 expiresAt: { gt: now },
-                normalizedText: normalized,
             },
             select: { id: true },
         });
         if (duplicate) {
-            throw new common_1.BadRequestException('Похожее опубликованное действие уже активно');
+            throw new common_1.BadRequestException('Такое действие уже опубликовано.');
         }
-        const updated = await this.prisma.action.update({
+        return this.prisma.action.update({
             where: { id },
             data: {
                 isPublished: true,
+                normalizedText: norm,
                 expiresAt,
-                normalizedText: normalized,
             },
-            select: { id: true, text: true, isPublished: true, expiresAt: true, userId: true },
-        });
-        this.rt.emitActionCreated({
-            id: updated.id,
-            text: updated.text,
-            userId: updated.userId,
-            expiresAt: updated.expiresAt,
-        });
-        return { ok: true, action: updated };
-    }
-    async listDrafts(userId) {
-        return this.prisma.action.findMany({
-            where: { userId, isPublished: false },
-            orderBy: { id: 'desc' },
-            select: { id: true, text: true, createdAt: true },
-        });
-    }
-    async listPublished(userId) {
-        const now = new Date();
-        return this.prisma.action.findMany({
-            where: { userId, isPublished: true, expiresAt: { gt: now } },
-            orderBy: { expiresAt: 'asc' },
             select: { id: true, text: true, expiresAt: true },
         });
     }
-    async myActionsPage(userId) {
-        const [drafts, published] = await Promise.all([
-            this.listDrafts(userId),
-            this.listPublished(userId),
-        ]);
-        return { drafts, published };
+    async deleteAction(userId, id) {
+        const action = await this.prisma.action.findUnique({ where: { id } });
+        if (!action)
+            throw new common_1.NotFoundException('Action not found');
+        if (action.userId !== userId)
+            throw new common_1.ForbiddenException('not your action');
+        if (action.isPublished) {
+            await this.prisma.actionMark.deleteMany({ where: { actionId: id } });
+        }
+        await this.prisma.action.delete({ where: { id } });
+        return { ok: true };
     }
 };
 exports.MyActionsService = MyActionsService;
 exports.MyActionsService = MyActionsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        realtime_gateway_1.RealtimeGateway])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], MyActionsService);
 //# sourceMappingURL=my-actions.service.js.map

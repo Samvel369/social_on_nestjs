@@ -21,14 +21,14 @@ export declare class MainController {
             avatar_url: any;
         };
         top_actions: ({
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
+            normalizedText: string;
             isPublished: boolean;
             isDaily: boolean;
             createdAt: Date;
             expiresAt: Date | null;
-            normalizedText: string;
         } & {
             marks: number;
         })[];

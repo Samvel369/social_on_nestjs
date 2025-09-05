@@ -1,12 +1,11 @@
-{% if subscribers %}
-  {% for subscriber in subscribers %}
-    <div data-user-id="{{ subscriber.id }}" style="display:flex;align-items:center;margin-bottom:20px;">
-      <img src="{{ subscriber.avatar_url }}" alt="avatar"
-           style="width:60px;height:60px;object-fit:cover;border-radius:50%;margin-right:15px;">
-      <div style="flex-grow:1;">
-        <strong><a href="/profile/{{ subscriber.id }}">{{ subscriber.username }}</a></strong><br>
-        <a href="/profile/{{ subscriber.id }}">Перейти в профиль</a>
+{% if subscribers and subscribers.length %}
+  {% for u in subscribers %}
+    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+      <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+      <div style="flex:1 1 auto;">
+        <strong><a href="/profile/{{ u.id }}">{{ u.username }}</a></strong>
       </div>
+      <button data-action="request" data-user-id="{{ u.id }}">Добавить в друзья</button>
     </div>
   {% endfor %}
 {% else %}

@@ -1,22 +1,15 @@
-{% if users %}
-  {% for user in users %}
-    <div class="possible-friend" data-user-id="{{ user.id }}" data-appeared-at="{{ user.timestamp_ms }}" style="display: flex; align-items: center; margin-bottom: 20px;">
-      <img src="{{ user.avatar_url }}" alt="avatar"
-           style="width: 60px; height: 60px; object-fit: cover; border-radius: 50%; margin-right: 15px;">
-      <div style="flex-grow: 1;">
-        <a href="/profile/{{ user.id }}">
-          <strong>{{ user.username }}</strong>
-        </a><br>
-        <a href="/profile/{{ user.id }}">Перейти в профиль</a>
+{% if possible_friends and possible_friends.length %}
+  {% for u in possible_friends %}
+    <div class="pf-item" style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+      <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+      <a href="/profile/{{ u.id }}"><strong>{{ u.username }}</strong></a>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button data-action="request" data-user-id="{{ u.id }}">Добавить в друзья</button>
+        <button data-action="subscribe" data-user-id="{{ u.id }}">Подписаться</button>
+        <button data-action="dismiss" data-user-id="{{ u.id }}">Убрать</button>
       </div>
-      <form method="post" action="/api/friends/send_friend_request/{{ user.id }}" style="margin-right: 5px;">
-        <button type="submit">Добавить в друзья</button>
-      </form>
-      <form method="post" action="/api/friends/subscribe/{{ user.id }}">
-        <button type="submit">Подписаться</button>
-      </form>
     </div>
   {% endfor %}
 {% else %}
-  <p>Нет возможных друзей.</p>
+  <p>Список формируется автоматически.</p>
 {% endif %}

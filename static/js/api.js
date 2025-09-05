@@ -15,6 +15,7 @@ async function apiRequest(url, options = {}) {
     const config = {
         method: options.method || "GET",
         headers: { ...defaultHeaders, ...(options.headers || {}) },
+        credentials: "include",
     };
 
     if (options.data) {

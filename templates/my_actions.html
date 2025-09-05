@@ -1,64 +1,49 @@
-{% extends "base.html" %}
-
+{% extends 'base.html' %}
 {% block title %}Мои действия{% endblock %}
 
 {% block content %}
 <h2>Мои действия</h2>
 
-<!-- Добавить новое действие -->
 <h3>Добавить новое действие</h3>
-<form id="new-action-form" action="/api/my-actions/new" method="post">
-  <input type="text" name="text" placeholder="Введите текст действия" required>
-  <button type="button" id="create-action-btn">Создать</button>
+<form id="create-action-form" data-ajax="1">
+  <input type="text" id="new-action-text" name="text" placeholder="Введите текст действия" required />
+  <button type="submit">Создать</button>
 </form>
 
-<!-- Черновики -->
 <h3>Черновики</h3>
 <div id="drafts-list">
   {% if drafts and drafts.length %}
-    {% for action in drafts %}
-      <div class="action-item" data-id="{{ action.id }}">
-        <a href="/api/actions/action_card/{{ action.id }}" target="_blank" class="action-title">{{ action.text }}</a>
-
-        <form class="delete-form" action="/api/my-actions/delete/{{ action.id }}" method="post" style="display:inline;">
-          <button type="submit">Удалить</button>
-        </form>
-
-        <form class="publish-form" action="/api/my-actions/publish" method="post" style="display:inline;">
-          <input type="hidden" name="id" value="{{ action.id }}">
-          <select name="duration" required>
-            <option value="10">10 мин</option>
-            <option value="30">30 мин</option>
-            <option value="60">1 час</option>
-          </select>
-          <button type="button" class="publish-btn" data-id="{{ action.id }}">Опубликовать</button>
-        </form>
+    {% for d in drafts %}
+      <div class="action-item" data-id="{{ d.id }}">
+        <a href="/api/actions/action_card/{{ d.id }}">{{ d.text }}</a>
+        <button type="button" class="delete-btn">Удалить</button>
+        <select class="duration">
+          <option value="10">10 мин</option>
+          <option value="30">30 мин</option>
+          <option value="60">1 час</option>
+        </select>
+        <button type="button" class="publish-btn">Опубликовать</button>
       </div>
     {% endfor %}
   {% else %}
-    <p>Нет черновиков</p>
+    <p id="no-drafts">Нет черновиков</p>
   {% endif %}
 </div>
 
-<!-- Опубликованные -->
 <h3>Опубликованные действия</h3>
 <div id="published-list">
   {% if published and published.length %}
-    {% for action in published %}
-      <div class="action-item" data-id="{{ action.id }}">
-        <a href="/api/actions/action_card/{{ action.id }}" target="_blank" class="action-title">{{ action.text }}</a>
-        <small>Действует до: {{ action.expires_at or '—' }}</small>
-
-        <form class="delete-form" action="/api/my-actions/delete/{{ action.id }}" method="post" style="display:inline;">
-          <button type="submit">Удалить</button>
-        </form>
+    {% for a in published %}
+      <div class="action-item" data-id="{{ a.id }}">
+        <a href="/api/actions/action_card/{{ a.id }}">{{ a.text }}</a>
+        <small>Действует до: {{ a.expiresAt or '—' }}</small>
+        <button type="button" class="delete-btn">Удалить</button>
       </div>
     {% endfor %}
   {% else %}
-    <p>Нет опубликованных действий</p>
+    <p id="no-published">Нет опубликованных действий</p>
   {% endif %}
 </div>
 
-<!-- Скрипт страницы -->
 <script src="/static/js/my_actions.js"></script>
 {% endblock %}

@@ -11,8 +11,8 @@ export declare class ActionsService {
         peak: number;
     } | {
         action: {
+            userId: number;
             id: number;
-            userId: number | null;
             text: string;
             isPublished: boolean;
             createdAt: Date;
