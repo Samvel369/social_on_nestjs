@@ -1,14 +1,24 @@
+// static/js/friends.js
 (function () {
-  const $ = (s, r = document) => r.querySelector(s);
+  const $ = (sel, root = document) => root.querySelector(sel);
 
+  // Подключаемся к уже созданному в socket.js соединению
   function ensureSocket() {
-    let socket = window.__friendsSocket || window.socket;
+    let socket = window.socket;
     try {
-      if (!socket) socket = io('/world', { withCredentials: true });
-      if (!window.__friendsSocket) window.__friendsSocket = socket;
+      if (!socket || socket.nsp !== '/world') {
+        socket = io('/world', { withCredentials: true, auth: { userId: window.CURRENT_USER_ID } });
+        window.socket = socket;
+      }
+      // На всякий случай — вступим в комнату, если не успели
+      socket.emit('join', { room: `user_${window.CURRENT_USER_ID}` });
+
+      // Снимаем возможные дубли и вешаем единичный слушатель
       socket.off('friends:lists:refresh');
       socket.on('friends:lists:refresh', () => refreshLists());
-    } catch (e) { console.warn('socket init failed', e); }
+    } catch (e) {
+      console.warn('socket init failed', e);
+    }
     return socket;
   }
 
@@ -46,7 +56,7 @@
     return res.json().catch(() => ({}));
   }
 
-  // Делегирование: защищаем от дабл-клика
+  // Делегирование кликов с защитой от дабл-клика
   document.addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button[data-action]');
     if (!btn) return;
@@ -55,24 +65,16 @@
 
     const action = btn.dataset.action;
     try {
-      if (action === 'request') {
-        await post(`/api/friends/request/${btn.dataset.userId}`);
-      } else if (action === 'accept') {
-        await post(`/api/friends/accept/${btn.dataset.requestId}`);
-      } else if (action === 'cancel') {
-        await post(`/api/friends/cancel/${btn.dataset.requestId}`, { subscribe: false });
-      } else if (action === 'leave-subscriber') {
-        await post(`/api/friends/leave-subscriber/${btn.dataset.requestId}`);
-      } else if (action === 'remove-friend') {
-        await post(`/api/friends/remove/${btn.dataset.userId}`);
-      } else if (action === 'subscribe') {
-        await post(`/api/friends/subscribe/${btn.dataset.userId}`);
-      } else if (action === 'unsubscribe') {
-        await post(`/api/friends/unsubscribe/${btn.dataset.userId}`);
-      } else if (action === 'dismiss') {
-        await post(`/api/friends/dismiss/${btn.dataset.userId}`);
-      }
-      await refreshLists(); // локальный апдейт, сервер всё равно шлёт событие
+      if (action === 'request')              await post(`/api/friends/request/${btn.dataset.userId}`);
+      else if (action === 'accept')          await post(`/api/friends/accept/${btn.dataset.requestId}`);
+      else if (action === 'cancel')          await post(`/api/friends/cancel/${btn.dataset.requestId}`);
+      else if (action === 'leave-subscriber')await post(`/api/friends/leave-subscriber/${btn.dataset.requestId}`);
+      else if (action === 'remove-friend')   await post(`/api/friends/remove/${btn.dataset.userId}`);
+      else if (action === 'subscribe')       await post(`/api/friends/subscribe/${btn.dataset.userId}`);
+      else if (action === 'unsubscribe')     await post(`/api/friends/unsubscribe/${btn.dataset.userId}`);
+      else if (action === 'dismiss')         await post(`/api/friends/dismiss/${btn.dataset.userId}`);
+
+      await refreshLists(); // локальный фоллбэк; сервер всё равно шлёт событие
     } catch (e) {
       console.error('action failed', action, e);
       if (window.showNotification) showNotification('Ошибка операции', 'error'); else alert('Ошибка операции');
@@ -92,6 +94,8 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     ensureSocket();
+    // Дадим socket.js возможность дергать обновление глобально
+    window.refreshFriendsLists = refreshLists;
     refreshLists();
   });
 })();

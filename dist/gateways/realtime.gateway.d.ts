@@ -1,18 +1,13 @@
-import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { OnGatewayConnection } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-export declare class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export declare class RealtimeGateway implements OnGatewayConnection {
     server: Server;
     handleConnection(client: Socket): void;
-    handleDisconnect(_client: Socket): void;
-    onJoin(client: Socket, data: {
+    handleJoin(data: {
         room?: string;
         userId?: number;
-    }): void;
-    emitActionCreated(payload: any): void;
-    emitActionDeleted(id: number): void;
-    notifyUser(userId: number, event: string, data: any): void;
-    emitToLegacyUserRoom(userId: number, event: string, payload: any): void;
-    emitToUser(userId: number, event: string, payload?: any): void;
-    emitToUsers(userIds: Array<number | string>, event: string, payload?: any): void;
-    emitAll(event: string, payload?: any): void;
+    }, client: Socket): void;
+    emitToUser(userId: number, event: string): void;
+    emitToUsers(userIds: number[], event: string): void;
+    emitToLegacyUserRoom(userId: number, event: string, payload?: any): void;
 }

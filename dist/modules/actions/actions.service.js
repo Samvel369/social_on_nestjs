@@ -70,10 +70,7 @@ let ActionsService = class ActionsService {
                 update: { timestamp: now },
                 create: { viewerId: ownerId, userId, timestamp: now },
             });
-            this.rt.emitToLegacyUserRoom(ownerId, 'update_possible_friends', {
-                user_id: userId,
-                username,
-            });
+            this.rt.emitToUser(ownerId, 'friends:lists:refresh');
         }
         return { success: true };
     }

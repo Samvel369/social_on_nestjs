@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MyActionsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const realtime_gateway_1 = require("../../gateways/realtime.gateway");
 function normalizeText(text) {
     return text
         .toLowerCase()
@@ -20,8 +21,9 @@ function normalizeText(text) {
         .trim();
 }
 let MyActionsService = class MyActionsService {
-    constructor(prisma) {
+    constructor(prisma, rt) {
         this.prisma = prisma;
+        this.rt = rt;
     }
     async getDrafts(userId) {
         return this.prisma.action.findMany({
@@ -124,6 +126,7 @@ let MyActionsService = class MyActionsService {
 exports.MyActionsService = MyActionsService;
 exports.MyActionsService = MyActionsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        realtime_gateway_1.RealtimeGateway])
 ], MyActionsService);
 //# sourceMappingURL=my-actions.service.js.map

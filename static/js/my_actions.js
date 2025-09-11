@@ -1,3 +1,4 @@
+// static/js/my_actions.js
 (() => {
   const $ = (sel, root = document) => root.querySelector(sel);
   const draftsBox = $('#drafts-list');
@@ -27,7 +28,7 @@
   }
 
   async function refresh() {
-    const res = await fetch('/api/my-actions');
+    const res = await fetch('/api/my-actions', { credentials: 'include' });
     const data = await res.json();
     renderDrafts(data.drafts || []);
     renderPublished(data.published || []);
@@ -138,11 +139,18 @@
     }
   });
 
-  // обновляться по сокету (если подключён)
-  if (window.io) {
-    const s = window.socket || window.io();
-    s.on('my-actions:changed', () => refresh());
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1) обновляемся по сокету (если он есть и уже поднят в socket.js)
+    if (window.socket) {
+      window.socket.off('my-actions:changed');
+      window.socket.on('my-actions:changed', refresh);
+    }
 
-  refresh();
+    // 2) и ещё обновляемся по «пингу» из другой вкладки (world.js ставит MYA_PING)
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'MYA_PING') refresh();
+    });
+
+    refresh();
+  });
 })();

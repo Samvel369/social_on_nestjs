@@ -17,62 +17,35 @@ const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 let RealtimeGateway = class RealtimeGateway {
     handleConnection(client) {
-        client.join('world:public');
-        client.emit('hello', { ok: true, msg: 'connected to /world' });
-    }
-    handleDisconnect(_client) {
-    }
-    onJoin(client, data) {
-        const room = data?.room ?? (data?.userId ? `user_${data.userId}` : undefined);
-        if (room) {
-            client.join(room);
-            client.emit('joined', { room });
+        const uid = Number(client.handshake.auth?.userId || client.handshake.query?.userId);
+        if (uid && Number.isFinite(uid)) {
+            client.join(`user_${uid}`);
         }
     }
-    emitActionCreated(payload) {
-        this.server.to('world:public').emit('actions.created', payload);
+    handleJoin(data, client) {
+        const room = data?.room || (data?.userId ? `user_${data.userId}` : undefined);
+        if (room)
+            client.join(room);
     }
-    emitActionDeleted(id) {
-        this.server.to('world:public').emit('actions.deleted', { id });
+    emitToUser(userId, event) {
+        try {
+            this.server.to(`user_${userId}`).emit(event);
+        }
+        catch { }
     }
-    notifyUser(userId, event, data) {
-        this.server.to(`user_${userId}`).emit(event, data);
+    emitToUsers(userIds, event) {
+        try {
+            const rooms = userIds.filter(Boolean).map((id) => `user_${id}`);
+            if (rooms.length)
+                this.server.to(rooms).emit(event);
+        }
+        catch { }
     }
     emitToLegacyUserRoom(userId, event, payload) {
-        this.server.to(`user_${userId}`).emit(event, payload);
-    }
-    emitToUser(userId, event, payload) {
-        const room = `user:${userId}`;
-        this.server.to(room).emit(event, payload ?? {});
-    }
-    emitToUsers(userIds, event, payload = {}) {
-        if (!this.server || !userIds?.length)
-            return;
-        const rooms = [];
-        for (const id of userIds) {
-            rooms.push(`u:${id}`, `${id}`);
-        }
         try {
-            this.server.to(rooms).emit(event, payload);
+            this.server.to(`user_${userId}`).emit(event, payload);
         }
         catch { }
-        try {
-            const ids = new Set(userIds.map(String));
-            const sockets = this.server.sockets?.sockets ?? new Map();
-            for (const [, s] of sockets) {
-                const sid = s.data?.userId ??
-                    s.data?.uid ??
-                    s.handshake?.auth?.userId ??
-                    s.handshake?.query?.userId;
-                if (sid != null && ids.has(String(sid))) {
-                    s.emit(event, payload);
-                }
-            }
-        }
-        catch { }
-    }
-    emitAll(event, payload = {}) {
-        this.server?.emit(event, payload);
     }
 };
 exports.RealtimeGateway = RealtimeGateway;
@@ -82,16 +55,16 @@ __decorate([
 ], RealtimeGateway.prototype, "server", void 0);
 __decorate([
     (0, websockets_1.SubscribeMessage)('join'),
-    __param(0, (0, websockets_1.ConnectedSocket)()),
-    __param(1, (0, websockets_1.MessageBody)()),
+    __param(0, (0, websockets_1.MessageBody)()),
+    __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", void 0)
-], RealtimeGateway.prototype, "onJoin", null);
+], RealtimeGateway.prototype, "handleJoin", null);
 exports.RealtimeGateway = RealtimeGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         namespace: '/world',
-        cors: { origin: '*' },
+        cors: { origin: true, credentials: true },
     })
 ], RealtimeGateway);
 //# sourceMappingURL=realtime.gateway.js.map

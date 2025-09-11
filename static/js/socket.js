@@ -1,29 +1,53 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const socket = io();              // ← одна инициализация
-  window.socket = socket;           // ← делаем глобально доступным
+// static/js/socket.js
+// Единое соединение в namespace '/world' + join в комнату user_<id>
+(function () {
+  function initSocket() {
+    const uid = window.CURRENT_USER_ID;
+    if (!uid) return;
 
-  socket.emit("join", { room: `user_${window.CURRENT_USER_ID}` });
-
-  socket.on("friend_accepted", function(data) {
-    console.log("Новый друг:", data);
-
-    const requestEl = document.querySelector(`[data-request-id="${data.request_id}"]`);
-    if (requestEl) requestEl.remove();
-
-    const friendsList = document.getElementById("friends-list");
-    if (friendsList) {
-      const div = document.createElement("div");
-      div.style.marginBottom = "20px";
-      div.innerHTML = `
-        <img src="${data.friend_avatar}" width="60" style="border-radius: 50%; margin-right: 15px;">
-        <strong><a href="/profile/${data.friend_id}">${data.friend_username}</a></strong>
-      `;
-      friendsList.appendChild(div);
+    if (window.socket && window.socket.connected && window.socket.nsp === '/world') {
+      return;
     }
-  });
 
-  // Пример: можно добавлять другие socket.on(...) сюда
-  socket.on("new_request", data => {
-    console.log("Новая заявка в друзья:", data);
-  });
-});
+    const socket = io('/world', {
+      withCredentials: true,
+      auth: { userId: uid },
+    });
+
+    window.socket = socket;
+    window.__friendsSocket = socket;
+
+    const joinRoom = () => {
+      try { socket.emit('join', { room: `user_${uid}` }); } catch {}
+    };
+
+    socket.on('connect', joinRoom);
+    socket.io.on('reconnect', joinRoom);
+
+    // Нормальное событие "друзей"
+    socket.off('friends:lists:refresh');
+    socket.on('friends:lists:refresh', () => {
+      if (typeof window.refreshFriendsLists === 'function') {
+        window.refreshFriendsLists();
+      }
+    });
+
+    // Legacy-событие из старого world.service.ts
+    socket.off('update_possible_friends');
+    socket.on('update_possible_friends', () => {
+      if (typeof window.refreshFriendsLists === 'function') {
+        window.refreshFriendsLists();
+      }
+    });
+
+    // Прочие старые (просто на всякий случай)
+    socket.on('friend_accepted', function (data) {
+      console.log('Новый друг (legacy event):', data);
+    });
+    socket.on('new_request', function (data) {
+      console.log('Новая заявка (legacy event):', data);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initSocket);
+})();

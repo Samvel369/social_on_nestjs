@@ -9,6 +9,8 @@ export declare class FriendsService {
     private notifyBoth;
     private assertUserExists;
     private isUniqueError;
+    private cleanupSubscriptionsBetween;
+    private cleanupPotentialBetween;
     getPossible(viewerId: number, keepMinutes?: number): Promise<{
         id: number;
         username: string;
@@ -87,5 +89,4 @@ export declare class FriendsService {
     dismiss(userId: number, targetUserId: number): Promise<{
         ok: boolean;
     }>;
-    private ensureSubscription;
 }

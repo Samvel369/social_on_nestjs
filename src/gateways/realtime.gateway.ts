@@ -1,108 +1,63 @@
 import {
-  WebSocketGateway,
-  WebSocketServer,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
-  SubscribeMessage,
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
+/**
+ * Единый namespace '/world'. Пользователи сидят в комнатах 'user_<id>'.
+ * Публичные методы (не менять сигнатуры):
+ *  - emitToUser(userId, event)
+ *  - emitToUsers(userIds[], event)
+ * Дополнительно: legacy-совместимость
+ *  - emitToLegacyUserRoom(userId, event, payload?)
+ */
 @WebSocketGateway({
   namespace: '/world',
-  cors: { origin: '*' },
+  cors: { origin: true, credentials: true },
 })
-export class RealtimeGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
-  @WebSocketServer() server!: Server;
+export class RealtimeGateway implements OnGatewayConnection {
+  @WebSocketServer()
+  server!: Server;
 
-  // Клиент подключился
   handleConnection(client: Socket) {
-    // общий канал как в твоём коде
-    client.join('world:public');
-    client.emit('hello', { ok: true, msg: 'connected to /world' });
+    const uid = Number(client.handshake.auth?.userId || client.handshake.query?.userId);
+    if (uid && Number.isFinite(uid)) {
+      client.join(`user_${uid}`);
+    }
   }
 
-  // Клиент отключился
-  handleDisconnect(_client: Socket) {
-    // noop
-  }
-
-  // ==== JOIN: дать клиенту войти в свою комнату user_{id} (как во Flask) ====
   @SubscribeMessage('join')
-  onJoin(
-    @ConnectedSocket() client: Socket,
+  handleJoin(
     @MessageBody() data: { room?: string; userId?: number },
+    @ConnectedSocket() client: Socket,
   ) {
-    const room = data?.room ?? (data?.userId ? `user_${data.userId}` : undefined);
-    if (room) {
-      client.join(room);
-      client.emit('joined', { room });
-    }
+    const room = data?.room || (data?.userId ? `user_${data.userId}` : undefined);
+    if (room) client.join(room);
   }
 
-  // ==== Хелперы для Actions ====
-  emitActionCreated(payload: any): void {
-    this.server.to('world:public').emit('actions.created', payload);
-  }
-
-  emitActionDeleted(id: number): void {
-    this.server.to('world:public').emit('actions.deleted', { id });
-  }
-
-  // Послать событие конкретному пользователю (совремённый helper)
-  notifyUser(userId: number, event: string, data: any): void {
-    this.server.to(`user_${userId}`).emit(event, data);
-  }
-
-  // Совместимость с твоим Flask-названием комнаты user_{id}
-  emitToLegacyUserRoom(userId: number, event: string, payload: any): void {
-    this.server.to(`user_${userId}`).emit(event, payload);
-  }
-
-  /** Отправить событие конкретному пользователю.
-   *  Поддерживает разные схемы комнат (u:<id> и просто <id>)
-   *  + делает резервную отправку напрямую во все сокеты пользователя.
-   */
-  emitToUser(userId: number, event: string, payload?: any) {
-    const room = `user:${userId}`;
-    this.server.to(room).emit(event, payload ?? {});
-  }
-
-  /** Отправить событие сразу списку пользователей (поддерживает и комнаты, и резервную отправку) */
-  emitToUsers(userIds: Array<number | string>, event: string, payload: any = {}) {
-    if (!this.server || !userIds?.length) return;
-
-    const rooms: string[] = [];
-    for (const id of userIds) {
-      rooms.push(`u:${id}`, `${id}`);
-    }
+  // ---- Основные эмитеры ----
+  emitToUser(userId: number, event: string): void {
     try {
-      this.server.to(rooms).emit(event, payload);
-    } catch { /* ignore */ }
+      this.server.to(`user_${userId}`).emit(event);
+    } catch {}
+  }
 
+  emitToUsers(userIds: number[], event: string): void {
     try {
-      const ids = new Set(userIds.map(String));
-      const sockets = this.server.sockets?.sockets ?? new Map<string, any>();
-      for (const [, s] of sockets) {
-        const sid =
-          s.data?.userId ??
-          s.data?.uid ??
-          s.handshake?.auth?.userId ??
-          s.handshake?.query?.userId;
-
-        if (sid != null && ids.has(String(sid))) {
-          s.emit(event, payload);
-        }
-      }
-    } catch { /* ignore */ }
+      const rooms = userIds.filter(Boolean).map((id) => `user_${id}`);
+      if (rooms.length) this.server.to(rooms).emit(event);
+    } catch {}
   }
 
-  /** Разослать событие всем подключённым клиентам */
-  emitAll(event: string, payload: any = {}) {
-    this.server?.emit(event, payload);
+  // ---- Legacy-совместимость (для старого world.service.ts) ----
+  emitToLegacyUserRoom(userId: number, event: string, payload?: any): void {
+    try {
+      this.server.to(`user_${userId}`).emit(event, payload);
+    } catch {}
   }
-
 }

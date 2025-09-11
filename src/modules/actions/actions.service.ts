@@ -74,16 +74,13 @@ export class ActionsService {
 
       // upsert по составному уникальному ключу viewerId_userId
       await this.prisma.potentialFriendView.upsert({
-        where: { viewerId_userId: { viewerId: ownerId, userId } },
+        where:  { viewerId_userId: { viewerId: ownerId, userId } },
         update: { timestamp: now },
         create: { viewerId: ownerId, userId, timestamp: now },
       });
 
       // событие как во Flask: в комнату user_{ownerId}
-      this.rt.emitToLegacyUserRoom(ownerId, 'update_possible_friends', {
-        user_id: userId,
-        username,
-      });
+      this.rt.emitToUser(ownerId, 'friends:lists:refresh');
     }
 
     return { success: true };

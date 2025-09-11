@@ -1,5 +1,4 @@
 import { FriendsService } from './friends.service';
-import { CancelFriendDto } from './friends.dto';
 type AuthUser = {
     userId: number;
     username: string;
@@ -100,7 +99,7 @@ export declare class FriendsController {
     accept(u: AuthUser, rid: number): Promise<{
         ok: boolean;
     }>;
-    cancel(u: AuthUser, rid: number, body: CancelFriendDto): Promise<{
+    cancel(u: AuthUser, rid: number, subscribeQ?: string, body?: any): Promise<{
         ok: boolean;
     }>;
     leave(u: AuthUser, rid: number): Promise<{

@@ -1,18 +1,10 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  ParseIntPipe,
-  Query,
-  Body,
-  UseGuards,
-  Render,
+  Controller, Get, Post, Param, ParseIntPipe, Query, Body,
+  UseGuards, Render,
 } from '@nestjs/common';
 import { FriendsService } from './friends.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CancelFriendDto } from './friends.dto';
 
 type AuthUser = { userId: number; username: string };
 
@@ -22,7 +14,7 @@ export class FriendsController {
   constructor(private readonly service: FriendsService) {}
 
   // ---------- FULL PAGE ----------
-  @Get('view')
+  @Get(['', 'view'])
   @Render('friends.html')
   async page(@CurrentUser() u: AuthUser, @Query('keep') keep?: string) {
     const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
@@ -42,9 +34,7 @@ export class FriendsController {
   @Render('partials/possible_friends.html')
   async pPossible(@CurrentUser() u: AuthUser, @Query('keep') keep?: string) {
     const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
-    return {
-      possible_friends: await this.service.getPossible(u.userId, keep_minutes),
-    };
+    return { possible_friends: await this.service.getPossible(u.userId, keep_minutes) };
   }
 
   @Get(['partials/incoming', 'partials/incoming_requests'])
@@ -94,12 +84,11 @@ export class FriendsController {
   async cancel(
     @CurrentUser() u: AuthUser,
     @Param('rid', ParseIntPipe) rid: number,
-    @Body() body: CancelFriendDto,
+    @Query('subscribe') subscribeQ?: string,
+    @Body() body?: any,
   ) {
-    const subscribe =
-      body?.subscribe === '1' ||
-      body?.subscribe === 'true' ||
-      body?.subscribe === 'on';
+    const raw = (subscribeQ ?? body?.subscribe ?? 'false')?.toString();
+    const subscribe = raw === '1' || raw === 'true' || raw === 'on';
     await this.service.cancelFriendRequest(u.userId, rid, subscribe);
     return { ok: true };
   }

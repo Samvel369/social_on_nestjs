@@ -17,7 +17,6 @@ const common_1 = require("@nestjs/common");
 const friends_service_1 = require("./friends.service");
 const jwt_guard_1 = require("../auth/jwt.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
-const friends_dto_1 = require("./friends.dto");
 let FriendsController = class FriendsController {
     constructor(service) {
         this.service = service;
@@ -36,9 +35,7 @@ let FriendsController = class FriendsController {
     }
     async pPossible(u, keep) {
         const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
-        return {
-            possible_friends: await this.service.getPossible(u.userId, keep_minutes),
-        };
+        return { possible_friends: await this.service.getPossible(u.userId, keep_minutes) };
     }
     async pIncoming(u) {
         return { incoming_requests: await this.service.getIncoming(u.userId) };
@@ -63,10 +60,9 @@ let FriendsController = class FriendsController {
         await this.service.acceptFriendRequest(u.userId, rid);
         return { ok: true };
     }
-    async cancel(u, rid, body) {
-        const subscribe = body?.subscribe === '1' ||
-            body?.subscribe === 'true' ||
-            body?.subscribe === 'on';
+    async cancel(u, rid, subscribeQ, body) {
+        const raw = (subscribeQ ?? body?.subscribe ?? 'false')?.toString();
+        const subscribe = raw === '1' || raw === 'true' || raw === 'on';
         await this.service.cancelFriendRequest(u.userId, rid, subscribe);
         return { ok: true };
     }
@@ -93,7 +89,7 @@ let FriendsController = class FriendsController {
 };
 exports.FriendsController = FriendsController;
 __decorate([
-    (0, common_1.Get)('view'),
+    (0, common_1.Get)(['', 'view']),
     (0, common_1.Render)('friends.html'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('keep')),
@@ -170,9 +166,10 @@ __decorate([
     (0, common_1.Post)('cancel/:rid'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('rid', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Body)()),
+    __param(2, (0, common_1.Query)('subscribe')),
+    __param(3, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Number, friends_dto_1.CancelFriendDto]),
+    __metadata("design:paramtypes", [Object, Number, String, Object]),
     __metadata("design:returntype", Promise)
 ], FriendsController.prototype, "cancel", null);
 __decorate([

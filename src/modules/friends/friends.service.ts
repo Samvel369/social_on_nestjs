@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 import { FriendRequestStatus } from '@prisma/client';
@@ -15,25 +10,29 @@ export class FriendsService {
     private readonly rt: RealtimeGateway,
   ) {}
 
-  // ---- helpers ----
+  // ---------- helpers ----------
   private mapUser(u: { id: number; username: string; avatarUrl: string | null }) {
     return { id: u.id, username: u.username, avatar_url: u.avatarUrl ?? '' };
   }
-  private notifyOne(userId: number, event: string) {
-    try { this.rt.emitToUser(userId, event); } catch {}
-  }
-  private notifyBoth(a: number, b: number, event: string) {
-    try { this.rt.emitToUsers([a, b], event); } catch {}
-  }
+  private notifyOne(userId: number, event: string) { try { this.rt.emitToUser(userId, event); } catch {} }
+  private notifyBoth(a: number, b: number, event: string) { try { this.rt.emitToUsers([a, b], event); } catch {} }
   private async assertUserExists(userId: number) {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!u) throw new NotFoundException('user not found');
   }
-  private isUniqueError(e: any) {
-    return e && typeof e === 'object' && e.code === 'P2002';
+  private isUniqueError(e: any) { return e && typeof e === 'object' && e.code === 'P2002'; }
+  private async cleanupSubscriptionsBetween(a: number, b: number) {
+    await this.prisma.subscriber.deleteMany({ where: { OR: [
+      { subscriberId: a, ownerId: b }, { subscriberId: b, ownerId: a },
+    ]}});
+  }
+  private async cleanupPotentialBetween(a: number, b: number) {
+    await this.prisma.potentialFriendView.deleteMany({ where: { OR: [
+      { viewerId: a, userId: b }, { viewerId: b, userId: a },
+    ]}});
   }
 
-  // ---- reads ----
+  // ---------- reads ----------
   async getPossible(viewerId: number, keepMinutes = 10) {
     const since = new Date(Date.now() - keepMinutes * 60_000);
     const rows = await this.prisma.potentialFriendView.findMany({
@@ -64,10 +63,7 @@ export class FriendsService {
 
   async getFriends(userId: number) {
     const rows = await this.prisma.friendRequest.findMany({
-      where: {
-        status: FriendRequestStatus.ACCEPTED,
-        OR: [{ senderId: userId }, { receiverId: userId }],
-      },
+      where: { status: FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
       include: {
         sender: { select: { id: true, username: true, avatarUrl: true } },
         receiver: { select: { id: true, username: true, avatarUrl: true } },
@@ -95,12 +91,11 @@ export class FriendsService {
     return rows.map(r => this.mapUser(r.owner));
   }
 
-  // ---- actions (идемпотентные) ----
+  // ---------- actions (idempotent) ----------
   async sendFriendRequest(userId: number, toUserId: number) {
     if (userId === toUserId) throw new BadRequestException('self request');
     await this.assertUserExists(toUserId);
 
-    // 1) Проверяем, что уже есть между A и B
     const existing = await this.prisma.friendRequest.findFirst({
       where: {
         OR: [
@@ -113,33 +108,28 @@ export class FriendsService {
     });
 
     if (existing) {
-      // уже друзья → идемпотентно ок
       if (existing.status === FriendRequestStatus.ACCEPTED) {
         this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
         return { ok: true, alreadyFriends: true };
       }
-      // исходящая уже есть → идемпотентно ок
       if (existing.senderId === userId) {
         this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
         return { ok: true, duplicatePending: true };
       }
       // встречная входящая → авто-accept
-      await this.prisma.friendRequest.update({
-        where: { id: existing.id },
-        data: { status: FriendRequestStatus.ACCEPTED },
-      });
+      await this.prisma.friendRequest.update({ where: { id: existing.id }, data: { status: FriendRequestStatus.ACCEPTED } });
+      await this.cleanupSubscriptionsBetween(userId, toUserId);
+      await this.cleanupPotentialBetween(userId, toUserId);
       this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
       return { ok: true, autoAccepted: true };
     }
 
-    // 2) Создаём новую PENDING (с защитой от гонки по уникальному индексу, если он есть)
     try {
       await this.prisma.friendRequest.create({
         data: { senderId: userId, receiverId: toUserId, status: FriendRequestStatus.PENDING },
       });
     } catch (e: any) {
-      if (!this.isUniqueError(e)) throw e; // что-то другое — пробрасываем
-      // дубликат по уникальному индексу → идемпотентно ок
+      if (!this.isUniqueError(e)) throw e;
     }
 
     this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
@@ -151,19 +141,14 @@ export class FriendsService {
       where: { id: requestId },
       select: { id: true, senderId: true, receiverId: true, status: true },
     });
-    if (!fr) return { ok: true }; // идемпотентно
-
+    if (!fr) return { ok: true };
     if (fr.receiverId !== userId) throw new ForbiddenException('not your request');
 
-    if (fr.status !== FriendRequestStatus.PENDING) {
-      this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
-      return { ok: true }; // уже не pending → идемпотентно
+    if (fr.status === FriendRequestStatus.PENDING) {
+      await this.prisma.friendRequest.update({ where: { id: requestId }, data: { status: FriendRequestStatus.ACCEPTED } });
+      await this.cleanupSubscriptionsBetween(fr.senderId, fr.receiverId);
+      await this.cleanupPotentialBetween(fr.senderId, fr.receiverId);
     }
-
-    await this.prisma.friendRequest.update({
-      where: { id: requestId },
-      data: { status: FriendRequestStatus.ACCEPTED },
-    });
     this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
     return { ok: true };
   }
@@ -178,11 +163,13 @@ export class FriendsService {
 
     if (fr.status === FriendRequestStatus.PENDING) {
       await this.prisma.friendRequest.delete({ where: { id: requestId } });
-      if (subscribe) await this.ensureSubscription(userId, fr.receiverId);
+      if (subscribe) {
+        try { await this.prisma.subscriber.create({ data: { subscriberId: userId, ownerId: fr.receiverId } }); }
+        catch (e: any) { if (!this.isUniqueError(e)) throw e; }
+      }
       this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
       return { ok: true };
     }
-    // если уже не pending — идемпотентно ок
     this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
     return { ok: true };
   }
@@ -197,9 +184,8 @@ export class FriendsService {
 
     if (fr.status === FriendRequestStatus.PENDING) {
       await this.prisma.friendRequest.delete({ where: { id: requestId } });
-      await this.ensureSubscription(fr.senderId, fr.receiverId);
-      this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
-      return { ok: true };
+      try { await this.prisma.subscriber.create({ data: { subscriberId: fr.senderId, ownerId: fr.receiverId } }); }
+      catch (e: any) { if (!this.isUniqueError(e)) throw e; }
     }
     this.notifyBoth(fr.senderId, fr.receiverId, 'friends:lists:refresh');
     return { ok: true };
@@ -209,16 +195,25 @@ export class FriendsService {
     const fr = await this.prisma.friendRequest.findFirst({
       where: {
         status: FriendRequestStatus.ACCEPTED,
+        OR: [{ senderId: userId }, { receiverId: userId }],
+        AND: [{ senderId: otherId }, { receiverId: otherId }].map(() => ({})) // not used; clarity below
+      },
+    });
+    // ^^^ проще по-старому:
+    const existed = await this.prisma.friendRequest.findFirst({
+      where: {
+        status: FriendRequestStatus.ACCEPTED,
         OR: [
           { senderId: userId, receiverId: otherId },
           { senderId: otherId, receiverId: userId },
         ],
       },
-      select: { id: true, senderId: true, receiverId: true },
+      select: { id: true },
     });
-    if (!fr) return { ok: true }; // идемпотентно
+    if (!existed) return { ok: true };
 
-    await this.prisma.friendRequest.delete({ where: { id: fr.id } });
+    await this.prisma.friendRequest.delete({ where: { id: existed.id } });
+    await this.cleanupSubscriptionsBetween(userId, otherId);
     this.notifyBoth(userId, otherId, 'friends:lists:refresh');
     return { ok: true };
   }
@@ -239,11 +234,8 @@ export class FriendsService {
     });
     if (isFriend) return { ok: true };
 
-    try {
-      await this.prisma.subscriber.create({ data: { subscriberId: userId, ownerId: targetUserId } });
-    } catch (e: any) {
-      if (!this.isUniqueError(e)) throw e; // на всякий случай, если есть уникальный индекс
-    }
+    try { await this.prisma.subscriber.create({ data: { subscriberId: userId, ownerId: targetUserId } }); }
+    catch (e: any) { if (!this.isUniqueError(e)) throw e; }
     this.notifyBoth(userId, targetUserId, 'friends:lists:refresh');
     return { ok: true };
   }
@@ -258,14 +250,5 @@ export class FriendsService {
     await this.prisma.potentialFriendView.deleteMany({ where: { viewerId: userId, userId: targetUserId } });
     this.notifyOne(userId, 'friends:lists:refresh');
     return { ok: true };
-  }
-
-  private async ensureSubscription(subscriberId: number, ownerId: number) {
-    if (subscriberId === ownerId) return;
-    try {
-      await this.prisma.subscriber.create({ data: { subscriberId, ownerId } });
-    } catch (e: any) {
-      if (!this.isUniqueError(e)) throw e;
-    }
   }
 }
