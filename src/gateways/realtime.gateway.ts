@@ -8,14 +8,6 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-/**
- * Единый namespace '/world'. Пользователи сидят в комнатах 'user_<id>'.
- * Публичные методы (не менять сигнатуры):
- *  - emitToUser(userId, event)
- *  - emitToUsers(userIds[], event)
- * Дополнительно: legacy-совместимость
- *  - emitToLegacyUserRoom(userId, event, payload?)
- */
 @WebSocketGateway({
   namespace: '/world',
   cors: { origin: true, credentials: true },
@@ -24,10 +16,50 @@ export class RealtimeGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
+  // userId → Set(socketId)
+  private socketsByUser = new Map<number, Set<string>>();
+
+  // ===== counters =====
+  getOnlineCount(): number {
+    return this.socketsByUser.size; // уникальные юзеры
+  }
+
+  private trackConnect(userId: number, socketId: string) {
+    if (!userId) return;
+    let set = this.socketsByUser.get(userId);
+    if (!set) {
+      set = new Set<string>();
+      this.socketsByUser.set(userId, set);
+    }
+    set.add(socketId);
+    this.broadcastStats();
+  }
+
+  private trackDisconnect(userId: number, socketId: string) {
+    if (!userId) return;
+    const set = this.socketsByUser.get(userId);
+    if (set) {
+      set.delete(socketId);
+      if (set.size === 0) this.socketsByUser.delete(userId);
+      this.broadcastStats();
+    }
+  }
+
+  private broadcastStats() {
+    try {
+      this.server.emit('stats:online', { online: this.getOnlineCount() });
+    } catch {}
+  }
+
   handleConnection(client: Socket) {
-    const uid = Number(client.handshake.auth?.userId || client.handshake.query?.userId);
-    if (uid && Number.isFinite(uid)) {
+    const raw = (client.handshake.auth?.userId ?? client.handshake.query?.userId) as any;
+    const uid = Number(raw);
+    if (Number.isFinite(uid) && uid > 0) {
+      // авто-вступление в комнату user_<id>
       client.join(`user_${uid}`);
+      this.trackConnect(uid, client.id);
+
+      client.on('disconnect', () => this.trackDisconnect(uid, client.id));
     }
   }
 
@@ -40,11 +72,14 @@ export class RealtimeGateway implements OnGatewayConnection {
     if (room) client.join(room);
   }
 
-  // ---- Основные эмитеры ----
+  @SubscribeMessage('stats:request')
+  handleStatsRequest(@ConnectedSocket() client: Socket) {
+    client.emit('stats:online', { online: this.getOnlineCount() });
+  }
+
+  // ===== main emitters (не менять сигнатуры) =====
   emitToUser(userId: number, event: string): void {
-    try {
-      this.server.to(`user_${userId}`).emit(event);
-    } catch {}
+    try { this.server.to(`user_${userId}`).emit(event); } catch {}
   }
 
   emitToUsers(userIds: number[], event: string): void {
@@ -54,10 +89,8 @@ export class RealtimeGateway implements OnGatewayConnection {
     } catch {}
   }
 
-  // ---- Legacy-совместимость (для старого world.service.ts) ----
+  // legacy alias
   emitToLegacyUserRoom(userId: number, event: string, payload?: any): void {
-    try {
-      this.server.to(`user_${userId}`).emit(event, payload);
-    } catch {}
+    try { this.server.to(`user_${userId}`).emit(event, payload); } catch {}
   }
 }

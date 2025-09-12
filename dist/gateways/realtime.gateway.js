@@ -16,16 +16,56 @@ exports.RealtimeGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 let RealtimeGateway = class RealtimeGateway {
+    constructor() {
+        this.socketsByUser = new Map();
+    }
+    getOnlineCount() {
+        return this.socketsByUser.size;
+    }
+    trackConnect(userId, socketId) {
+        if (!userId)
+            return;
+        let set = this.socketsByUser.get(userId);
+        if (!set) {
+            set = new Set();
+            this.socketsByUser.set(userId, set);
+        }
+        set.add(socketId);
+        this.broadcastStats();
+    }
+    trackDisconnect(userId, socketId) {
+        if (!userId)
+            return;
+        const set = this.socketsByUser.get(userId);
+        if (set) {
+            set.delete(socketId);
+            if (set.size === 0)
+                this.socketsByUser.delete(userId);
+            this.broadcastStats();
+        }
+    }
+    broadcastStats() {
+        try {
+            this.server.emit('stats:online', { online: this.getOnlineCount() });
+        }
+        catch { }
+    }
     handleConnection(client) {
-        const uid = Number(client.handshake.auth?.userId || client.handshake.query?.userId);
-        if (uid && Number.isFinite(uid)) {
+        const raw = (client.handshake.auth?.userId ?? client.handshake.query?.userId);
+        const uid = Number(raw);
+        if (Number.isFinite(uid) && uid > 0) {
             client.join(`user_${uid}`);
+            this.trackConnect(uid, client.id);
+            client.on('disconnect', () => this.trackDisconnect(uid, client.id));
         }
     }
     handleJoin(data, client) {
         const room = data?.room || (data?.userId ? `user_${data.userId}` : undefined);
         if (room)
             client.join(room);
+    }
+    handleStatsRequest(client) {
+        client.emit('stats:online', { online: this.getOnlineCount() });
     }
     emitToUser(userId, event) {
         try {
@@ -61,6 +101,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
     __metadata("design:returntype", void 0)
 ], RealtimeGateway.prototype, "handleJoin", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('stats:request'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket]),
+    __metadata("design:returntype", void 0)
+], RealtimeGateway.prototype, "handleStatsRequest", null);
 exports.RealtimeGateway = RealtimeGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         namespace: '/world',

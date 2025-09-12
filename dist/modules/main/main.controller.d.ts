@@ -1,8 +1,12 @@
 import { MainService } from './main.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
+import { PrismaService } from '../../prisma/prisma.service';
+import { RealtimeGateway } from '../../gateways/realtime.gateway';
 export declare class MainController {
     private readonly mainService;
-    constructor(mainService: MainService);
+    private readonly prisma;
+    private readonly rt;
+    constructor(mainService: MainService, prisma: PrismaService, rt: RealtimeGateway);
     root(): {
         current_user: null;
         total_users: number;

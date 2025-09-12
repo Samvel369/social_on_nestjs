@@ -36,7 +36,21 @@
     {% for a in published %}
       <div class="action-item" data-id="{{ a.id }}">
         <a href="/api/actions/action_card/{{ a.id }}">{{ a.text }}</a>
-        <small>Действует до: {{ a.expiresAt or '—' }}</small>
+        <small>
+          Действует до:
+          <span class="expires-iso">{{ a.expiresAt or '—' }}</span>
+          {% if a.expiresAt %}
+            (осталось: <span class="expires-left" data-expires="{{ a.expiresAt }}"></span>)
+          {% endif %}
+        </small>
+
+        <select class="republish-duration">
+          <option value="10">+10 мин</option>
+          <option value="30">+30 мин</option>
+          <option value="60">+1 час</option>
+        </select>
+        <button type="button" class="republish-btn" disabled>Опубликовать снова</button>
+
         <button type="button" class="delete-btn">Удалить</button>
       </div>
     {% endfor %}
@@ -44,6 +58,7 @@
     <p id="no-published">Нет опубликованных действий</p>
   {% endif %}
 </div>
+
 
 <script src="/static/js/my_actions.js"></script>
 {% endblock %}

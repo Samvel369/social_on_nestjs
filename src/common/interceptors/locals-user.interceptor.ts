@@ -1,18 +1,20 @@
-import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
+import { PrismaService } from '../../prisma/prisma.service';
+import { RealtimeGateway } from '../../gateways/realtime.gateway';
 import { map } from 'rxjs/operators';
 
 @Injectable()
 export class LocalsUserInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const http = context.switchToHttp();
-    const req: any = http.getRequest();
-    const res: any = http.getResponse();
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rt: RealtimeGateway,
+  ) {}
+
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+    const ctx = context.switchToHttp();
+    const req = ctx.getRequest();
+    const res = ctx.getResponse();
 
     // 1) Протолкнём current_user в res.locals (работает для @Render)
     try {
@@ -29,19 +31,36 @@ export class LocalsUserInterceptor implements NestInterceptor {
       /* ignore */
     }
 
+    try {
+      res.locals.total_users = await this.prisma.user.count();
+    } catch {
+      res.locals.total_users = 0;
+    }
+    try {
+      res.locals.online_users = this.rt.getOnlineCount();
+    } catch {
+      res.locals.online_users = 0;
+    }
+
     // 2) А на всякий случай добавим current_user в объект, который возвращает @Render()
     return next.handle().pipe(
       map((data) => {
-        if (
-          res?.locals?.current_user &&
-          data &&
-          typeof data === 'object' &&
-          !Array.isArray(data) &&
-          !('current_user' in data)
-        ) {
-          return { ...data, current_user: res.locals.current_user };
+        const out: any = (data && typeof data === 'object' && !Array.isArray(data)) ? { ...data } : (data ?? {});
+
+        // добавим current_user, если контроллер сам не положил
+        if (res?.locals?.current_user && !('current_user' in out)) {
+          out.current_user = res.locals.current_user;
         }
-        return data;
+
+        // ДОБАВИМ СЧЁТЧИКИ — это и есть фикc
+        if (typeof res?.locals?.total_users !== 'undefined' && !('total_users' in out)) {
+          out.total_users = res.locals.total_users;
+        }
+        if (typeof res?.locals?.online_users !== 'undefined' && !('online_users' in out)) {
+          out.online_users = res.locals.online_users;
+        }
+
+        return out;
       }),
     );
   }

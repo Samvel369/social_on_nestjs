@@ -19,6 +19,7 @@
 
     const joinRoom = () => {
       try { socket.emit('join', { room: `user_${uid}` }); } catch {}
+      try { socket.emit('stats:request'); } catch {}   // ← запросим текущие цифры
     };
 
     socket.on('connect', joinRoom);
@@ -46,6 +47,18 @@
     });
     socket.on('new_request', function (data) {
       console.log('Новая заявка (legacy event):', data);
+    });
+
+     // === обновление счётчиков ===
+    socket.off('stats:online');
+    socket.on('stats:online', (data) => {
+      const onlineEl = document.getElementById('online-users');
+      if (onlineEl) onlineEl.textContent = String((data && data.online) || 0);
+
+      const totalEl = document.getElementById('total-users');
+      if (totalEl && data && typeof data.total === 'number') {
+        totalEl.textContent = String(data.total);
+      }
     });
   }
 

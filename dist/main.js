@@ -7,9 +7,32 @@ const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const nunjucks = require("nunjucks");
 const cookieParser = require("cookie-parser");
+const prisma_service_1 = require("./prisma/prisma.service");
+const realtime_gateway_1 = require("./gateways/realtime.gateway");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.use(cookieParser());
+    const prisma = app.get(prisma_service_1.PrismaService);
+    const rt = app.get(realtime_gateway_1.RealtimeGateway);
+    app.use(async (req, res, next) => {
+        const accept = req.headers['accept'];
+        const acceptsHtml = typeof accept === 'string' && accept.includes('text/html');
+        if (!acceptsHtml)
+            return next();
+        try {
+            res.locals.total_users = await prisma.user.count();
+        }
+        catch {
+            res.locals.total_users = 0;
+        }
+        try {
+            res.locals.online_users = rt.getOnlineCount();
+        }
+        catch {
+            res.locals.online_users = 0;
+        }
+        next();
+    });
     app.setGlobalPrefix('api', {
         exclude: [{ path: '/', method: common_1.RequestMethod.GET }],
     });

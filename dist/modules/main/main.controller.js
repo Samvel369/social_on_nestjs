@@ -17,9 +17,13 @@ const common_1 = require("@nestjs/common");
 const main_service_1 = require("./main.service");
 const jwt_guard_1 = require("../auth/jwt.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
+const prisma_service_1 = require("../../prisma/prisma.service");
+const realtime_gateway_1 = require("../../gateways/realtime.gateway");
 let MainController = class MainController {
-    constructor(mainService) {
+    constructor(mainService, prisma, rt) {
         this.mainService = mainService;
+        this.prisma = prisma;
+        this.rt = rt;
     }
     root() {
         return {
@@ -73,6 +77,7 @@ __decorate([
 ], MainController.prototype, "main", null);
 exports.MainController = MainController = __decorate([
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [main_service_1.MainService])
+    __metadata("design:paramtypes", [main_service_1.MainService, prisma_service_1.PrismaService,
+        realtime_gateway_1.RealtimeGateway])
 ], MainController);
 //# sourceMappingURL=main.controller.js.map

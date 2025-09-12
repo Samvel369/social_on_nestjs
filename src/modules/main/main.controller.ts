@@ -2,10 +2,13 @@ import { Controller, Get, UseGuards, Render } from '@nestjs/common';
 import { MainService } from './main.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
+import { PrismaService } from '../../prisma/prisma.service';
+import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
 @Controller()
 export class MainController {
-  constructor(private readonly mainService: MainService) {}
+  constructor(private readonly mainService: MainService, private readonly prisma: PrismaService,
+  private readonly rt: RealtimeGateway,) {}
 
   // Гостевая домашняя
   @Get()              // /api

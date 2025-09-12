@@ -63,8 +63,8 @@
   </div>
 
   <div class="sidebar-right">
-    <p><strong>Нас уже:</strong> {{ total_users | default(0) }}</p>
-    <p><strong>Онлайн:</strong> {{ online_users | default(0) }}</p>
+    <p><strong>Нас уже:</strong> <span id="total-users">{{ total_users | default(0) }}</span></p>
+    <p><strong>Онлайн:</strong> <span id="online-users">{{ online_users | default(0) }}</span></p>
   </div>
 </div>
 
