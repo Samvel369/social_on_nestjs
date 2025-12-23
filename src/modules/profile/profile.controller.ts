@@ -52,7 +52,7 @@ export class ProfileController {
       about: me.user.about ?? '',
     };
 
-    return { current_user, user: userView, total_users: 0, online_users: 0 };
+    return { current_user, user: userView};
   }
 
   /** Публичный профиль (страница) */
@@ -76,8 +76,6 @@ export class ProfileController {
       current_user: null,
       user: userView,
       view: data.view,
-      total_users: 0,
-      online_users: 0,
     };
   }
 

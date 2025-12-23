@@ -12,8 +12,6 @@ export declare class WorldController {
         daily_actions: any[];
         published: any[];
         drafts: any[];
-        total_users: number;
-        online_users: number;
     }>;
     mark(user: AuthUser, id: string): Promise<{
         success: boolean;

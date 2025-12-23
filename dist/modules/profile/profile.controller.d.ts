@@ -20,8 +20,6 @@ export declare class ProfileController {
             status: string;
             about: string;
         };
-        total_users: number;
-        online_users: number;
     }>;
     publicProfile(id: number): Promise<{
         current_user: null;
@@ -34,8 +32,6 @@ export declare class ProfileController {
             about: string;
         };
         view: "self" | "public" | "preview";
-        total_users: number;
-        online_users: number;
     }>;
     editProfile(user: AuthUser): Promise<{
         current_user: {

@@ -19,8 +19,6 @@ export class ActionsController {
       total_marks: data.total_marks,
       peak: data.peak,
       // сайдбар справа — чтобы base.html не падал
-      total_users: 0,
-      online_users: 0,
     };
   }
 

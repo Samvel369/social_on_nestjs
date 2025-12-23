@@ -30,15 +30,11 @@ let WorldController = class WorldController {
         const daily_actions = [];
         const published = [];
         const drafts = [];
-        const total_users = 0;
-        const online_users = 0;
         return {
             current_user,
             daily_actions,
             published,
             drafts,
-            total_users,
-            online_users,
         };
     }
     async mark(user, id) {

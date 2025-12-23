@@ -20,8 +20,6 @@ export declare class MyActionsController {
             text: string;
             expiresAt: Date | null;
         }[];
-        total_users: number;
-        online_users: number;
     }>;
     list(user: AuthUser): Promise<{
         drafts: {

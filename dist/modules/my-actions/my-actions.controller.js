@@ -33,9 +33,7 @@ let MyActionsController = class MyActionsController {
             this.service.getDrafts(user.userId),
             this.service.getPublished(user.userId),
         ]);
-        const total_users = 0;
-        const online_users = 0;
-        return { current_user, drafts, published, total_users, online_users };
+        return { current_user, drafts, published };
     }
     async list(user) {
         const [drafts, published] = await Promise.all([

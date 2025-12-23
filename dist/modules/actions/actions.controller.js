@@ -28,8 +28,6 @@ let ActionsController = class ActionsController {
             users: data.users,
             total_marks: data.total_marks,
             peak: data.peak,
-            total_users: 0,
-            online_users: 0,
         };
     }
     getActionCard(id) {

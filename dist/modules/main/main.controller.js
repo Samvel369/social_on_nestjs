@@ -28,8 +28,6 @@ let MainController = class MainController {
     root() {
         return {
             current_user: null,
-            total_users: 0,
-            online_users: 0,
         };
     }
     homeSlash() {
@@ -46,8 +44,6 @@ let MainController = class MainController {
         return {
             current_user,
             top_actions,
-            total_users: 0,
-            online_users: 0,
         };
     }
 };

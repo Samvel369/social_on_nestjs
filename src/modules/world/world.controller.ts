@@ -36,16 +36,11 @@ export class WorldController {
     const published: any[] = [];
     const drafts: any[] = [];
 
-    const total_users = 0;
-    const online_users = 0;
-
     return {
       current_user,
       daily_actions,
       published,
       drafts,
-      total_users,
-      online_users,
     };
   }
 

@@ -16,8 +16,6 @@ export class MainController {
   root() {
     return {
       current_user: null,
-      total_users: 0,
-      online_users: 0,
     };
   }
 
@@ -45,8 +43,6 @@ export class MainController {
     return {
       current_user,
       top_actions,
-      total_users: 0,
-      online_users: 0,
     };
   }
 }

@@ -18,8 +18,6 @@ export declare class ActionsController {
         }[];
         total_marks: number;
         peak: number;
-        total_users: number;
-        online_users: number;
     }>;
     getActionCard(id: string): Promise<{
         action: null;

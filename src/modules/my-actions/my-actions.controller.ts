@@ -35,10 +35,9 @@ export class MyActionsController {
       this.service.getPublished(user.userId),
     ]);
 
-    const total_users = 0;
-    const online_users = 0;
+    
 
-    return { current_user, drafts, published, total_users, online_users };
+    return { current_user, drafts, published };
   }
 
   // JSON (для ajax-перерисовки списков)

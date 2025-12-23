@@ -9,13 +9,9 @@ export declare class MainController {
     constructor(mainService: MainService, prisma: PrismaService, rt: RealtimeGateway);
     root(): {
         current_user: null;
-        total_users: number;
-        online_users: number;
     };
     homeSlash(): {
         current_user: null;
-        total_users: number;
-        online_users: number;
     };
     main(user: AuthUser): Promise<{
         current_user: {
@@ -36,7 +32,5 @@ export declare class MainController {
         } & {
             marks: number;
         })[];
-        total_users: number;
-        online_users: number;
     }>;
 }

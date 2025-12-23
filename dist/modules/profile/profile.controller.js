@@ -44,7 +44,7 @@ let ProfileController = class ProfileController {
             status: me.user.status ?? '',
             about: me.user.about ?? '',
         };
-        return { current_user, user: userView, total_users: 0, online_users: 0 };
+        return { current_user, user: userView };
     }
     async publicProfile(id) {
         const data = await this.service.viewProfile(0, id);
@@ -62,8 +62,6 @@ let ProfileController = class ProfileController {
             current_user: null,
             user: userView,
             view: data.view,
-            total_users: 0,
-            online_users: 0,
         };
     }
     async editProfile(user) {
