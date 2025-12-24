@@ -18,12 +18,24 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {}),
     };
+
     const res = await fetch(url, opts);
+    
+    // Пытаемся прочитать JSON-ответ (там может быть текст ошибки)
+    let data = {};
+    try { data = await res.json(); } catch {}
+
     if (!res.ok) {
-      notify(`Ошибка: ${res.status} ${res.statusText}`, 'error');
-      throw new Error('Request failed');
+      // ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ:
+      // Если сервер прислал сообщение (message), показываем его.
+      // Если нет — показываем стандартный статус (Bad Request).
+      const errorMsg = data.message || `${res.status} ${res.statusText}`;
+      
+      notify(errorMsg, 'error');
+      throw new Error(errorMsg);
     }
-    try { return await res.json(); } catch { return {}; }
+    
+    return data;
   }
 
   async function refresh() {

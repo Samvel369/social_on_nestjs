@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateActionDto, PublishActionDto, DeleteActionDto } from './my-actions.dto';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
@@ -43,30 +43,28 @@ export class MyActionsService {
     if (text.length > 255) throw new BadRequestException('text is too long');
 
     const norm = normalizeText(text);
-    const now = new Date();
 
-    // 1) такой черновик уже есть?
-    const draftExists = await this.prisma.action.findFirst({
-      where: { userId, isPublished: false, normalizedText: norm },
-      select: { id: true },
-    });
-    if (draftExists) {
-      throw new BadRequestException('Такое действие у вас уже есть.');
-    }
-
-    // 2) есть активная публикация с таким же текстом?
-    const active = await this.prisma.action.findFirst({
+    // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    // 1) Строгая проверка на дубликаты
+    // Мы проверяем, есть ли у пользователя действие с таким текстом ВООБЩЕ.
+    // Неважно, опубликовано оно, истекло или в черновиках.
+    const existing = await this.prisma.action.findFirst({
       where: {
         userId,
-        isPublished: true,
         normalizedText: norm,
-        expiresAt: { gt: now },
       },
-      select: { id: true },
+      select: { id: true, isPublished: true },
     });
-    if (active) {
-      throw new BadRequestException('Такое действие уже опубликовано.');
+
+    if (existing) {
+      // Подсказываем пользователю, где искать его карточку
+      if (existing.isPublished) {
+        throw new BadRequestException('Такое действие уже есть!');
+      } else {
+        throw new BadRequestException('Такое действие уже есть в ваших черновиках.');
+      }
     }
+    // -----------------------
 
     return this.prisma.action.create({
       data: {
@@ -91,18 +89,19 @@ export class MyActionsService {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + (duration ?? 10) * 60_000);
 
-    // не допускаем одновременных дубликатов по нормализованному тексту
-    const duplicate = await this.prisma.action.findFirst({
+    // 2) ГЛОБАЛЬНАЯ ПРОВЕРКА: Делает ли кто-то в мире это ПРЯМО СЕЙЧАС?
+    // Ищем чужое действие с таким же текстом, которое опубликовано и время не истекло
+    const globalDuplicate = await this.prisma.action.findFirst({
       where: {
-        userId,
         isPublished: true,
         normalizedText: norm,
         expiresAt: { gt: now },
       },
       select: { id: true },
     });
-    if (duplicate) {
-      throw new BadRequestException('Такое действие уже опубликовано.');
+
+    if (globalDuplicate) {
+      throw new ConflictException('Такое действие уже происходит прямо сейчас! Найдите его в "Нашем мире" и нажмите "Я тоже".');
     }
 
     return this.prisma.action.update({
@@ -110,19 +109,19 @@ export class MyActionsService {
       data: {
         isPublished: true,
         normalizedText: norm,
+        createdAt: now,
         expiresAt,
       },
       select: { id: true, text: true, expiresAt: true },
     });
   }
 
-  /** Удалить действие (подходит и для черновиков, и для публикаций) */
+  /** Удалить действие */
   async deleteAction(userId: number, id: number) {
     const action = await this.prisma.action.findUnique({ where: { id } });
     if (!action) throw new NotFoundException('Action not found');
     if (action.userId !== userId) throw new ForbiddenException('not your action');
 
-    // если удаляем опубликованное — чистим отметки
     if (action.isPublished) {
       await this.prisma.actionMark.deleteMany({ where: { actionId: id } });
     }
