@@ -60,7 +60,18 @@
         totalEl.textContent = String(data.total);
       }
     });
+    // 🔥 НОВОЕ: Слушаем общее количество пользователей
+    socket.off('stats:total');
+    socket.on('stats:total', (data) => {
+      const totalEl = document.getElementById('total-users');
+      if (totalEl) {
+        // Добавляем красивый эффект мигания при изменении
+        totalEl.style.transition = 'color 0.3s';
+        totalEl.style.color = '#ff9800'; // Оранжевая вспышка
+        totalEl.textContent = String((data && data.total) || 0);
+        setTimeout(() => totalEl.style.color = '', 500);
+      }
+    });
   }
-
   document.addEventListener('DOMContentLoaded', initSocket);
 })();

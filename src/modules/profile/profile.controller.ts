@@ -17,6 +17,8 @@ import { ProfileService } from './profile.service';
 import { UpdateProfileDto } from './profile.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
+import { Res } from '@nestjs/common';
+import { Response } from 'express';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'static/uploads');
 
@@ -104,7 +106,7 @@ export class ProfileController {
       about: me.user.about ?? '',
     };
 
-    return { current_user, user: userView, total_users: 0, online_users: 0 };
+    return { current_user, user: userView };
   }
 
   /** Сохранение профиля (multipart, AJAX) */
@@ -135,6 +137,21 @@ export class ProfileController {
     }
 
     return { ok: true, redirect: '/api/profile/view' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('delete_account')
+  async deleteAccount(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.service.deleteAccount(user.userId);
+
+    // Удаляем куку с токеном, чтобы разлогинить браузер
+    res.clearCookie('token');
+
+    // Ответ для фронтенда (редирект на главную)
+    return { ok: true, redirect: '/' };
   }
 
   // ====================== JSON ======================

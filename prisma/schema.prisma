@@ -10,23 +10,23 @@ generator client {
 
 // ---------- модели ----------
 
-// users
 model User {
-  id         Int       @id @default(autoincrement())
-  username   String    @unique
-  email      String    @unique
-  password   String
-  lastActive DateTime  @default(now())
-  avatarUrl  String    @default("/app/static/uploads/default-avatar.png")
-  birthdate  DateTime?
-  status     String    @default("Приветствую всех!")
-  about      String    @default("Пока ничего о себе не рассказал.")
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  password     String
+  lastActive   DateTime @default(now())
+  avatarUrl    String   @default("/static/default-avatar.png")
+  birthdate    DateTime?
+  status       String   @default("Приветствую всех!")
+  about        String   @default("Пока ничего о себе не рассказал.")
 
+  // Связи
   actions Action[]
   marks   ActionMark[]
 
-  ignored   IgnoredUser[] @relation("ignorer")
-  ignoredBy IgnoredUser[] @relation("ignored")
+  ignored    IgnoredUser[] @relation("ignorer")
+  ignoredBy  IgnoredUser[] @relation("ignored")
 
   sentRequests     FriendRequest[] @relation("sender")
   receivedRequests FriendRequest[] @relation("receiver")
@@ -34,51 +34,46 @@ model User {
   subscribers   Subscriber[] @relation("owner")
   subscriptions Subscriber[] @relation("subscriber")
 
-  // ❗️Имена связей должны совпадать с теми, что в PotentialFriendView
   potentialViews PotentialFriendView[] @relation("pfv_viewer")
   viewedBy       PotentialFriendView[] @relation("pfv_user")
 }
 
-// actions
 model Action {
   id             Int      @id @default(autoincrement())
   userId         Int
   text           String   @db.VarChar(255)
   normalizedText String   @default("") @db.VarChar(512)
-
   isPublished    Boolean  @default(false)
   isDaily        Boolean  @default(false)
   createdAt      DateTime @default(now())
   expiresAt      DateTime?
 
-  user  User?    @relation(fields: [userId], references: [id])
-  marks ActionMark[]
+  // 🔥 CASCADE: Удаляем юзера -> удаляются его действия
+  user  User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marks ActionMark[] // Если удаляется действие, удаляются лайки (автоматически через ActionMark настройки)
 
-  // уже есть
   @@index([normalizedText])
-
-  // новое — ускоряет выборки и проверки
   @@index([userId, isPublished, id], map: "idx_user_isPublished_id")
   @@index([userId, isPublished, normalizedText], map: "idx_user_isPublished_norm")
   @@index([isPublished, normalizedText], map: "idx_isPublished_norm")
   @@index([isPublished, expiresAt], map: "idx_isPublished_expires")
 }
 
-// marks (лайки/отметки действий)
 model ActionMark {
   id        Int      @id @default(autoincrement())
   userId    Int
   actionId  Int
   timestamp DateTime @default(now())
 
-  user   User   @relation(fields: [userId], references: [id])
-  action Action @relation(fields: [actionId], references: [id])
+  // 🔥 CASCADE: Удаляем юзера -> удаляются его лайки
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 🔥 CASCADE: Удаляем действие -> удаляются лайки к нему
+  action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([actionId])
 }
 
-// заявки в друзья
 model FriendRequest {
   id         Int                 @id @default(autoincrement())
   senderId   Int
@@ -86,57 +81,56 @@ model FriendRequest {
   timestamp  DateTime            @default(now())
   status     FriendRequestStatus @default(PENDING)
 
-  sender   User @relation("sender", fields: [senderId], references: [id])
-  receiver User @relation("receiver", fields: [receiverId], references: [id])
+  // 🔥 CASCADE: Если удалился отправитель или получатель -> удаляем заявку
+  sender   User @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([senderId])
   @@index([receiverId])
 }
 
-// подписки/подписчики (followers)
 model Subscriber {
   id           Int @id @default(autoincrement())
   subscriberId Int
   ownerId      Int
 
-  subscriber User @relation("subscriber", fields: [subscriberId], references: [id])
-  owner      User @relation("owner", fields: [ownerId], references: [id])
+  // 🔥 CASCADE
+  subscriber User @relation("subscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  owner      User @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  @@unique([subscriberId, ownerId]) // один раз на одного owner’а
+  @@unique([subscriberId, ownerId])
   @@index([subscriberId])
   @@index([ownerId])
 }
 
-// просмотр карточек «возможных друзей»
 model PotentialFriendView {
   id        Int      @id @default(autoincrement())
   viewerId  Int
   userId    Int
   timestamp DateTime @default(now())
 
-  viewer User @relation("pfv_viewer", fields: [viewerId], references: [id])
-  user   User @relation("pfv_user", fields: [userId], references: [id])
+  // 🔥 CASCADE
+  viewer User @relation("pfv_viewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  user   User @relation("pfv_user", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([viewerId, userId], name: "viewerId_userId") // ✅ добавили
+  @@unique([viewerId, userId], name: "viewerId_userId")
   @@index([viewerId])
   @@index([userId])
 }
 
-// join-таблица для ignored_users (кто кого игнорит)
 model IgnoredUser {
-  // можно сделать составной первичный ключ:
   ignorerId Int
   ignoredId Int
 
-  ignorer User @relation("ignorer", fields: [ignorerId], references: [id])
-  ignored User @relation("ignored", fields: [ignoredId], references: [id])
+  // 🔥 CASCADE
+  ignorer User @relation("ignorer", fields: [ignorerId], references: [id], onDelete: Cascade)
+  ignored User @relation("ignored", fields: [ignoredId], references: [id], onDelete: Cascade)
 
   @@id([ignorerId, ignoredId])
   @@index([ignorerId])
   @@index([ignoredId])
 }
 
-// статусы заявок в друзья
 enum FriendRequestStatus {
   PENDING
   ACCEPTED

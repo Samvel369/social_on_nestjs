@@ -16,6 +16,11 @@ export class RealtimeGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
+  // Новый метод: Рассылка общего количества пользователей
+  broadcastTotalUsers(total: number) {
+    this.server.emit('stats:total', { total });
+  }
+
   // userId → Set(socketId)
   private socketsByUser = new Map<number, Set<string>>();
 

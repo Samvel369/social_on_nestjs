@@ -8,10 +8,11 @@ import { UpdateProfileDto } from './profile.dto';
 import { FriendRequestStatus } from '@prisma/client';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly rt: RealtimeGateway) {}
 
   async getMyProfile(userId: number) {
     const user = await this.prisma.user.findUnique({
@@ -132,5 +133,17 @@ export class ProfileService {
       data: { lastActive: new Date() },
     });
     return { ok: true };
+  }
+
+  /** Полное удаление аккаунта */
+  async deleteAccount(userId: number) {
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });  
+    // Благодаря onDelete: Cascade в Prisma, одной строчки достаточно,
+    // чтобы удалить User и ВСЕ его связи (лайки, посты, друзей)
+    //обновляем счетчики
+    const count = await this.prisma.user.count();
+    this.rt.broadcastTotalUsers(count);
   }
 }

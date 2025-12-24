@@ -6,10 +6,11 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto, LoginDto } from './auth.dto';
+import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(private prisma: PrismaService, private jwt: JwtService, private rt: RealtimeGateway,) {}
 
   async register(dto: RegisterDto) {
     if (dto.password !== dto.confirmPassword) {
@@ -33,6 +34,10 @@ export class AuthService {
       },
       select: { id: true, username: true, email: true, lastActive: true },
     });
+    
+    // 2. Добавляем уведомление всем-всем-всем:
+    const count = await this.prisma.user.count();
+    this.rt.broadcastTotalUsers(count);
 
     return { message: 'Регистрация прошла успешно', user };
   }

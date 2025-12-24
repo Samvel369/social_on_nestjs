@@ -23,5 +23,20 @@
   <button type="submit">Сохранить</button>
 </form>
 
+<hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+
+<div style="background: #fff0f0; padding: 15px; border: 1px solid #ffcccc; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #d9534f;">Опасная зона</h3>
+    <p>Вы можете навсегда удалить свой аккаунт. Это действие нельзя отменить.</p>
+    
+    <form method="post" action="/api/profile/delete_account" data-ajax>
+        <button type="submit" 
+                style="background: #d9534f; color: white; border: none; padding: 10px 20px; cursor: pointer;"
+                onclick="return confirm('Вы точно хотите удалить свой профиль? Все данные будут стерты безвозвратно.');">
+            Удалить аккаунт навсегда
+        </button>
+    </form>
+</div>
+
 <script src="/static/js/profile.js"></script>
 {% endblock %}
