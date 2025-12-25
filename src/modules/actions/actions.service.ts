@@ -9,31 +9,52 @@ export class ActionsService {
     private rt: RealtimeGateway,
   ) {}
 
-  // данные для карточки действия
+  // Данные для карточки действия
   async getActionCard(actionId: number) {
+    // 1. Ищем действие (ВАЖНО: добавляем publishCount в выборку)
     const action = await this.prisma.action.findUnique({
       where: { id: actionId },
-      select: { id: true, text: true, userId: true, isPublished: true, createdAt: true, expiresAt: true },
+      select: { 
+        id: true, 
+        text: true, 
+        userId: true, 
+        isPublished: true, 
+        createdAt: true, 
+        expiresAt: true,
+        publishCount: true // <--- Забираем счетчик публикаций
+      },
     });
-    if (!action) return { action: null, total_marks: 0, users: [], peak: 0 };
 
-    // Явно типизируем, берём только нужные поля
-    const marks: { userId: number; timestamp: Date }[] =
-      await this.prisma.actionMark.findMany({
-        where: { actionId },
-        orderBy: { timestamp: 'asc' },
-        select: { userId: true, timestamp: true },
-      });
+    // Если нет действия — возвращаем пустышку
+    if (!action) {
+      return { 
+        action: null, 
+        total_marks: 0, 
+        users: [], 
+        peak: 0, 
+        stats: { totalMarks: 0, uniqueUsers: 0, peakCount: 0 } 
+      };
+    }
 
+    // 2. Получаем все отметки
+    const marks = await this.prisma.actionMark.findMany({
+      where: { actionId },
+      orderBy: { timestamp: 'asc' },
+      select: { userId: true, timestamp: true },
+    });
+
+    // 3. Считаем уникальных пользователей
     const userIds = Array.from(new Set(marks.map(m => m.userId)));
-    const users: { id: number; username: string }[] =
-      userIds.length
-        ? await this.prisma.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, username: true },
-          })
-        : [];
+    
+    // Загружаем имена пользователей для списка
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, username: true },
+        })
+      : [];
 
+    // 4. Считаем пик активности (по минутам)
     const minuteCounts: Record<string, number> = {};
     for (const { timestamp } of marks) {
       const d = new Date(timestamp);
@@ -43,15 +64,29 @@ export class ActionsService {
     }
     const peak = Object.values(minuteCounts).reduce((acc, n) => (n > acc ? n : acc), 0);
 
-    return { action, total_marks: marks.length, users, peak };
+    // 5. Формируем объект статистики для контроллера
+    const stats = {
+      totalMarks: marks.length,
+      uniqueUsers: userIds.length,
+      peakCount: peak,
+    };
+
+    return { 
+      action, 
+      total_marks: marks.length, 
+      users, 
+      peak, 
+      stats // <--- Теперь он есть!
+    };
   }
 
-  // отметка действия + anti-spam 10 минут + potential_friend_view + событие
+  // --- Остальные методы (без изменений) ---
+
+  // Отметка действия + anti-spam + уведомления
   async markAction(actionId: number, userId: number, username: string) {
     const now = new Date();
     const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
 
-    // антиспам: отметка не чаще раз в 10 минут по одному action
     const recent = await this.prisma.actionMark.findFirst({
       where: { userId, actionId, timestamp: { gte: tenMinutesAgo } },
       select: { timestamp: true },
@@ -63,7 +98,6 @@ export class ActionsService {
 
     await this.prisma.actionMark.create({ data: { userId, actionId, timestamp: now } });
 
-    // если отметил не автор — добавим его в potential_friend_view автора
     const action = await this.prisma.action.findUnique({
       where: { id: actionId },
       select: { userId: true },
@@ -71,22 +105,17 @@ export class ActionsService {
 
     if (action && action.userId !== userId) {
       const ownerId = action.userId!;
-
-      // upsert по составному уникальному ключу viewerId_userId
       await this.prisma.potentialFriendView.upsert({
         where:  { viewerId_userId: { viewerId: ownerId, userId } },
         update: { timestamp: now },
         create: { viewerId: ownerId, userId, timestamp: now },
       });
-
-      // событие как во Flask: в комнату user_{ownerId}
       this.rt.emitToUser(ownerId, 'friends:lists:refresh');
     }
 
     return { success: true };
   }
 
-  // счётчики за последнюю минуту
   async getMarkCounts() {
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     const recent = await this.prisma.actionMark.findMany({
@@ -99,7 +128,6 @@ export class ActionsService {
     return counts;
   }
 
-  // опубликованные и не истёкшие
   async getPublishedActions() {
     const now = new Date();
     return this.prisma.action.findMany({
@@ -109,29 +137,32 @@ export class ActionsService {
     });
   }
 
-  // статистика по действию
   async getActionStats(actionId: number) {
+    // Внимание: здесь возвращаем упрощенную структуру для AJAX обновлений
+    // Если нужно, чтобы AJAX обновлял всё, можно вызвать this.getActionCard(actionId)
+    // Но пока оставим как было, чтобы JS не сломался
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
 
-    const allMarks: { userId: number }[] = await this.prisma.actionMark.findMany({
+    const allMarks = await this.prisma.actionMark.findMany({
       where: { actionId },
       select: { userId: true },
     });
 
-    const recent: { userId: number }[] = await this.prisma.actionMark.findMany({
+    const recent = await this.prisma.actionMark.findMany({
       where: { actionId, timestamp: { gte: oneMinuteAgo } },
       select: { userId: true },
     });
 
     const userIds = [...new Set(allMarks.map(m => m.userId))];
 
-    const users: { username: string }[] = userIds.length
+    const users = userIds.length
       ? await this.prisma.user.findMany({
           where: { id: { in: userIds } },
           select: { username: true },
         })
       : [];
 
+    // Здесь JS ждет total_marks, peak и users (массив строк или объектов)
     return {
       total_marks: allMarks.length,
       peak: recent.length,
@@ -139,17 +170,16 @@ export class ActionsService {
     };
   }
 
-  // топ-10 действий по отметкам за последнюю минуту
   async getTopActions() {
     const now = new Date();
     const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-    const active: { id: number; text: string }[] = await this.prisma.action.findMany({
+    const active = await this.prisma.action.findMany({
       where: { isPublished: true, expiresAt: { gt: now } },
       select: { id: true, text: true },
     });
 
-    const recentMarks: { actionId: number }[] = await this.prisma.actionMark.findMany({
+    const recentMarks = await this.prisma.actionMark.findMany({
       where: { timestamp: { gte: oneMinuteAgo } },
       select: { actionId: true },
     });
@@ -163,5 +193,12 @@ export class ActionsService {
       .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
       .slice(0, 10)
       .map(a => ({ id: a.id, text: a.text, marks: counts.get(a.id) ?? 0 }));
+  }
+
+  async getUserShortInfo(userId: number) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true, username: true },
+    });
   }
 }

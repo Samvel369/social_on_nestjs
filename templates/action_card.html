@@ -2,49 +2,93 @@
 {% block title %}Карточка действия{% endblock %}
 
 {% block content %}
-<h2>Карточка действия</h2>
+<div class="card-container">
+  <h2>Карточка действия</h2>
 
-{% if action %}
-  <p><strong>Действие:</strong> {{ action.text }}</p>
-  <p><strong>Всего отметок:</strong> <span id="total-marks">{{ total_marks }}</span></p>
-  <p><strong>Уникальных пользователей:</strong> <span id="user-count">{{ users|length }}</span></p>
-  <p><strong>Пик активности:</strong> <span id="peak">{{ peak }}</span> отметок за 1 минуту</p>
+  {% if action %}
+    <div class="action-header" style="margin-bottom: 20px;">
+      <h1 style="color: #2196F3; margin: 0;">{{ action.text }}</h1>
+      
+      <p style="color: #888; margin-top: 5px; font-size: 0.9em;">
+        Опубликовано раз за всё время: <strong>{{ action.publishCount }}</strong>
+      </p>
+    </div>
 
-  <h4>Пользователи:</h4>
-  <ul id="user-list" style="list-style: none; padding-left: 0;">
-    {% for u in users %}
-      <li><a href="/api/profile/public/{{ u.id }}">{{ u.username }}</a></li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>Действие не найдено.</p>
-{% endif %}
+    <div class="stats-box" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee;">
+      <p style="margin: 5px 0;"><strong>Всего отметок ("Жиза"):</strong> <span id="total-marks">{{ total_marks }}</span></p>
+      <p style="margin: 5px 0;"><strong>Уникальных людей:</strong> <span id="user-count">{{ users|length }}</span></p>
+      <p style="margin: 5px 0;"><strong>Пик активности:</strong> <span id="peak">{{ peak }}</span> отметок за 1 минуту</p>
+    </div>
 
-<a href="/api/world/view">← Назад</a>
+    <h4>Люди, которые делали это недавно:</h4>
+    <ul id="user-list" style="list-style: none; padding-left: 0;">
+      {% for u in users %}
+        <li style="margin-bottom: 5px;">
+            <a href="/api/profile/public/{{ u.id }}" style="text-decoration: none; color: #333; font-weight: bold;">
+                {{ u.username }}
+            </a>
+        </li>
+      {% else %}
+        <li style="color: #999;">Пока никого...</li>
+      {% endfor %}
+    </ul>
+
+  {% else %}
+    <p>Действие не найдено или было удалено.</p>
+  {% endif %}
+
+  <hr style="margin-top: 20px; border: 0; border-top: 1px solid #eee;">
+  
+  <div class="navigation-buttons" style="margin-top: 20px;">
+      <button onclick="history.back()" class="btn" style="background: #999; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px;">
+        ← Назад
+      </button>
+
+      <a href="/api/world/view" style="margin-left: 15px; font-size: 0.9em; color: #666; text-decoration: none;">
+        В Наш Мир
+      </a>
+  </div>
+</div>
 
 <script>
+  // ID действия для JS
   const actionId = {{ action and action.id or 'null' }};
+  
   function updateStats() {
     if (actionId === null) return;
     fetch(`/api/actions/action_stats/${actionId}`)
       .then(res => res.json())
       .then(data => {
+        // Обновляем цифры статистики
         document.getElementById('total-marks').innerText = data.total_marks;
         document.getElementById('user-count').innerText = (data.users || []).length;
         document.getElementById('peak').innerText = data.peak;
 
         const ul = document.getElementById('user-list');
         if (!ul) return;
+        
+        // Перерисовываем список людей
         ul.innerHTML = '';
-        (data.users || []).forEach(username => {
-          const li = document.createElement('li');
-          li.textContent = username; // из JSON приходит массив имён
-          ul.appendChild(li);
-        });
+        if (!data.users || data.users.length === 0) {
+            ul.innerHTML = '<li style="color: #999;">Пока никого...</li>';
+        } else {
+            (data.users || []).forEach(u => {
+              // AJAX сервис сейчас возвращает массив строк (имен), 
+              // поэтому просто выводим имя жирным шрифтом
+              const name = u.username || u; 
+              const li = document.createElement('li');
+              li.style.marginBottom = '5px';
+              li.innerHTML = `<b>${name}</b>`;
+              ul.appendChild(li);
+            });
+        }
       })
       .catch(() => {});
   }
-  updateStats();
-  setInterval(updateStats, 1000);
+  
+  // Обновляем статистику каждые 2 секунды
+  if (actionId) {
+      setInterval(updateStats, 2000);
+  }
 </script>
 {% endblock %}

@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService,  } from '../../prisma/prisma.service';
 import { CreateActionDto, PublishActionDto, DeleteActionDto } from './my-actions.dto';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
@@ -79,14 +79,16 @@ export class MyActionsService {
 
   /** Опубликовать черновик (duration — минуты) */
   async publishAction(userId: number, dto: PublishActionDto) {
+    const now = new Date();
     const { id, duration } = dto;
     const draft = await this.prisma.action.findUnique({ where: { id } });
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.userId !== userId) throw new ForbiddenException('not your action');
-    if (draft.isPublished) throw new BadRequestException('already published');
+    if (draft.isPublished && draft.expiresAt && draft.expiresAt > now) {
+       throw new BadRequestException('Это действие еще активно. Подождите, пока оно истечет.');
+    }
 
     const norm = draft.normalizedText || normalizeText(draft.text);
-    const now = new Date();
     const expiresAt = new Date(now.getTime() + (duration ?? 10) * 60_000);
 
     // 2) ГЛОБАЛЬНАЯ ПРОВЕРКА: Делает ли кто-то в мире это ПРЯМО СЕЙЧАС?
@@ -111,6 +113,7 @@ export class MyActionsService {
         normalizedText: norm,
         createdAt: now,
         expiresAt,
+        publishCount: { increment: 1 },
       },
       select: { id: true, text: true, expiresAt: true },
     });

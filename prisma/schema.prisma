@@ -41,13 +41,14 @@ model User {
 model Action {
   id             Int      @id @default(autoincrement())
   userId         Int
+  publishCount   Int      @default(0)
   text           String   @db.VarChar(255)
   normalizedText String   @default("") @db.VarChar(512)
   isPublished    Boolean  @default(false)
   isDaily        Boolean  @default(false)
   createdAt      DateTime @default(now())
   expiresAt      DateTime?
-
+  
   // 🔥 CASCADE: Удаляем юзера -> удаляются его действия
   user  User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   marks ActionMark[] // Если удаляется действие, удаляются лайки (автоматически через ActionMark настройки)

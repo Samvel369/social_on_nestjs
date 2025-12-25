@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards, Render } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Render, ParseIntPipe } from '@nestjs/common';
 import { ActionsService } from './actions.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
@@ -7,31 +7,46 @@ import { CurrentUser, AuthUser } from '../../common/decorators/current-user.deco
 export class ActionsController {
   constructor(private readonly actions: ActionsService) {}
 
-  // ---------- HTML ----------
-  // Полноценная страница карточки действия (templates/action_card.html)
+  // ---------- HTML: Страница карточки (С МЕНЮ!) ----------
   @Get('action_card/:id')
+  @UseGuards(JwtAuthGuard) // <--- Теперь доступ только для своих
   @Render('action_card.html')
-  async actionCardPage(@Param('id') id: string) {
-    const data = await this.actions.getActionCard(Number(id));
+  async actionCardPage(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser, // <--- Получаем данные о тебе
+  ) {
+    const data = await this.actions.getActionCard(id);
+
+    const userInfo = await this.actions.getUserShortInfo(user.userId);
+    
+    // Формируем профиль для меню слева
+    const current_user = {
+      id: user.userId,
+      userId: user.userId,
+      username: user.username,
+      avatar_url: userInfo?.avatarUrl || '/static/default-avatar.png', // 🔥 Вот теперь она есть!
+    };
+
     return {
       action: data.action,
-      users: data.users,               // [{id, username}]
+      stats: data.stats, // Передаем статистику (включая publishCount)
+      users: data.users,
       total_marks: data.total_marks,
       peak: data.peak,
-      // сайдбар справа — чтобы base.html не падал
+      current_user, // <--- ВОТ ЭТО вернет меню на место
     };
   }
 
-  // ---------- JSON ----------
-  // (оставляю имена и сигнатуры под твои методы сервиса)
+  // ---------- JSON API (для обновлений JS) ----------
+  
   @Get('action/:id')
-  getActionCard(@Param('id') id: string) {
-    return this.actions.getActionCard(Number(id));
+  getActionCard(@Param('id', ParseIntPipe) id: number) {
+    return this.actions.getActionCard(id);
   }
 
   @Get('action_stats/:id')
-  getActionStats(@Param('id') id: string) {
-    return this.actions.getActionStats(Number(id));
+  getActionStats(@Param('id', ParseIntPipe) id: number) {
+    return this.actions.getActionStats(id);
   }
 
   @Get('get_top_actions')
@@ -49,12 +64,11 @@ export class ActionsController {
     return this.actions.getPublishedActions();
   }
 
-  // отметка действия
   @UseGuards(JwtAuthGuard)
   @Post('mark_action/:id')
-  mark(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  mark(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.actions.markAction(
-      Number(id),
+      id,
       user.userId,
       user.username ?? `user${user.userId}`,
     );
