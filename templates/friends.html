@@ -2,43 +2,83 @@
 {% block content %}
 
 <h2>Возможные друзья:</h2>
-<form style="margin:8px 0">
+<div style="margin:8px 0">
   <label>Удалять из списка через:</label>
   <select id="cleanup-time">
+    <option value="1">1 мин (тест)</option>
+    <option value="5">5 мин</option>
     <option value="10" {% if keep_minutes == 10 %}selected{% endif %}>10 мин</option>
     <option value="30" {% if keep_minutes == 30 %}selected{% endif %}>30 мин</option>
     <option value="60" {% if keep_minutes == 60 %}selected{% endif %}>1 час</option>
   </select>
-</form>
+</div>
 
 <div id="possible-friends-list">
   {% include 'partials/possible_friends.html' %}
 </div>
 
 <hr>
-
 <h2>Входящие заявки:</h2>
 <div id="incoming-requests">{% include 'partials/incoming_requests.html' %}</div>
-
 <hr>
-
 <h2>Исходящие заявки:</h2>
 <div id="outgoing-requests">{% include 'partials/outgoing_requests.html' %}</div>
-
 <hr>
-
 <h2>Мои друзья:</h2>
 <div id="friends-list">{% include 'partials/friends_list.html' %}</div>
-
 <hr>
-
 <h2>Подписчики:</h2>
 <div id="subscribers-list">{% include 'partials/subscribers.html' %}</div>
-
 <hr>
-
 <h2>Подписан на:</h2>
 <div id="subscriptions-list">{% include 'partials/subscriptions.html' %}</div>
 
 <script src="/static/js/friends.js"></script>
+
+<script>
+  function runCleanup() {
+    // Ищем список, куда отрендерился partial
+    const container = document.getElementById('possible-friends-list');
+    const select = document.getElementById('cleanup-time');
+    
+    if (!container || !select) return;
+
+    const now = new Date().getTime();
+    const limitMs = parseInt(select.value) * 60 * 1000;
+
+    // Ищем элементы внутри подключенного partial
+    const items = container.querySelectorAll('.potential-item');
+    
+    items.forEach(item => {
+      // Читаем атрибут, который мы добавили в possible_friends.html
+      const createdStr = item.getAttribute('data-created');
+      if (!createdStr) return;
+
+      const createdTime = new Date(createdStr).getTime();
+      const diff = now - createdTime;
+
+      // 1. Обновляем текст времени
+      const minAgo = Math.floor(diff / 60000);
+      const agoSpan = item.querySelector('.time-ago');
+      if (agoSpan) {
+         agoSpan.textContent = minAgo < 1 ? '(только что)' : `(${minAgo} мин. назад)`;
+      }
+
+      // 2. Удаляем, если время вышло
+      if (diff > limitMs) {
+         item.style.opacity = '0';
+         setTimeout(() => item.remove(), 500);
+      }
+    });
+
+    // Если удалили всех, можно показать заглушку (опционально)
+    if (items.length > 0 && container.querySelectorAll('.potential-item').length === 0) {
+        container.innerHTML = '<p style="color: #999;">Список очищен.</p>';
+    }
+  }
+
+  // Запускаем каждую секунду
+  setInterval(runCleanup, 1000);
+  runCleanup();
+</script>
 {% endblock %}

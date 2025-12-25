@@ -40,7 +40,12 @@ export class FriendsService {
       include: { user: { select: { id: true, username: true, avatarUrl: true } } },
       orderBy: { timestamp: 'desc' },
     });
-    return rows.map(r => this.mapUser(r.user));
+
+    // 🔥 ИСПРАВЛЕНИЕ: Теперь мы отдаем объект с timestamp!
+    return rows.map(r => ({
+      ...this.mapUser(r.user), // id, username, avatar_url
+      timestamp: r.timestamp   // добавляем дату, чтобы JS мог считать таймер
+    }));
   }
 
   async getIncoming(userId: number) {
@@ -116,7 +121,6 @@ export class FriendsService {
         this.notifyBoth(userId, toUserId, 'friends:lists:refresh');
         return { ok: true, duplicatePending: true };
       }
-      // встречная входящая → авто-accept
       await this.prisma.friendRequest.update({ where: { id: existing.id }, data: { status: FriendRequestStatus.ACCEPTED } });
       await this.cleanupSubscriptionsBetween(userId, toUserId);
       await this.cleanupPotentialBetween(userId, toUserId);
@@ -192,14 +196,6 @@ export class FriendsService {
   }
 
   async removeFriend(userId: number, otherId: number) {
-    const fr = await this.prisma.friendRequest.findFirst({
-      where: {
-        status: FriendRequestStatus.ACCEPTED,
-        OR: [{ senderId: userId }, { receiverId: userId }],
-        AND: [{ senderId: otherId }, { receiverId: otherId }].map(() => ({})) // not used; clarity below
-      },
-    });
-    // ^^^ проще по-старому:
     const existed = await this.prisma.friendRequest.findFirst({
       where: {
         status: FriendRequestStatus.ACCEPTED,
