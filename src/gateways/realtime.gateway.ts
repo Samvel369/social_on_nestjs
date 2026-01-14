@@ -77,9 +77,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     client.emit('stats:online', { online: this.getOnlineCount() });
   }
 
-  // =================================================================
-  // СТАРЫЕ МЕТОДЫ (Для Друзей - ОСТАВЛЯЕМ КАК ЕСТЬ)
-  // =================================================================
+  // === СТАРЫЕ МЕТОДЫ (Друзья) ===
   emitToUser(userId: number, event: string): void {
     try { this.server.to(`user_${userId}`).emit(event); } catch {}
   }
@@ -95,12 +93,24 @@ export class RealtimeGateway implements OnGatewayConnection {
     try { this.server.to(`user_${userId}`).emit(event, payload); } catch {}
   }
 
-  // =================================================================
-  // НОВЫЕ МЕТОДЫ (Для Чата - С ДАННЫМИ)
-  // =================================================================
+  // === МЕТОДЫ ЧАТА ===
   emitData(userId: number, event: string, data: any): void {
     try {
       this.server.to(`user_${userId}`).emit(event, data);
     } catch {}
+  }
+
+  // 🔥 НОВЫЙ МЕТОД: Индикатор печати 🔥
+  // Клиент присылает { receiverId: 123 }
+  // Мы пересылаем этому 123: { senderId: кто_печатает }
+  @SubscribeMessage('chat:typing')
+  handleTyping(
+    @MessageBody() data: { receiverId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const senderId = Number(client.handshake.auth?.userId);
+    if (senderId && data.receiverId) {
+      this.server.to(`user_${data.receiverId}`).emit('chat:typing', { senderId });
+    }
   }
 }

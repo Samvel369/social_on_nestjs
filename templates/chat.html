@@ -26,21 +26,40 @@
   .contact-item {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;
-    position: relative; /* Для позиционирования бейджа */
+    position: relative; 
   }
   .contact-item:hover { background: #e0e0e0; }
   .contact-item.active { background: #d0e0ff; }
   .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
   
-  /* 🔥 СТИЛЬ ДЛЯ ЦИФРЫ НА КОНТАКТЕ 🔥 */
   .contact-badge {
-    background: #28a745; /* Зеленый цвет для личных сообщений */
+    background: #28a745; 
     color: white;
     border-radius: 12px;
     padding: 2px 8px;
     font-size: 11px;
     font-weight: bold;
-    margin-left: auto; /* Отодвигает цифру вправо */
+    margin-left: auto; 
+  }
+
+  /* 🔥 СТИЛЬ ДЛЯ "ПЕЧАТАЕТ..." 🔥 */
+  .typing-indicator {
+    font-size: 11px;
+    color: #007bff; /* Синий цвет как у сообщений */
+    font-style: italic;
+    display: none; /* Скрыто по умолчанию */
+    margin-top: 2px;
+  }
+  /* Анимация точек */
+  .typing-dots::after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
   }
 
   /* Правая колонка */
@@ -51,7 +70,7 @@
     background: #fff;
   }
   .chat-header {
-    padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; font-weight: bold;
+    padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; 
     display: flex; align-items: center; gap: 10px;
   }
   
@@ -103,7 +122,13 @@
           onclick="selectChat({{ friend.id }}, '{{ friend.username }}', '{{ friend.avatar_url }}')">
         
         <img src="{{ friend.avatar_url }}" class="contact-avatar" alt="ava">
-        <span>{{ friend.username }}</span>
+        
+        <div style="display:flex; flex-direction:column; flex:1;">
+            <span style="font-weight:bold;">{{ friend.username }}</span>
+            <small class="typing-indicator" id="typing-list-{{ friend.id }}">
+               печатает<span class="typing-dots"></span>
+            </small>
+        </div>
 
         <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">
           {{ friend.unreadCount }}
@@ -119,7 +144,12 @@
   <div class="chat-main">
     <div class="chat-header" id="chat-header" style="display:none;">
       <img src="" id="header-avatar" class="contact-avatar" alt="">
-      <span id="header-username">Имя</span>
+      <div style="display:flex; flex-direction:column;">
+          <span id="header-username" style="font-weight:bold;">Имя</span>
+          <small class="typing-indicator" id="typing-header" style="margin-top:0;">
+             печатает<span class="typing-dots"></span>
+          </small>
+      </div>
     </div>
 
     <div class="messages-area" id="messages-area">

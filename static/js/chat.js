@@ -1,8 +1,11 @@
 (function() {
     let currentReceiverId = null;
     let socket = null;
+    
+    // Таймеры для "печатает..." (ключ = senderId, значение = timerId)
+    const typingTimeouts = {}; 
+    let lastTypingSent = 0; // Чтобы не спамить серверу каждые 10мс
 
-    // 🔥 ФИКС РЕАЛ-ТАЙМА: Ждем, пока base.html загрузит сокет
     const initInterval = setInterval(() => {
         if (window.socket) {
             socket = window.socket;
@@ -12,22 +15,75 @@
     }, 100);
 
     function startChatLogic() {
-        // 1. СЛУШАЕМ СООБЩЕНИЯ
+        // 1. СЛУШАЕМ НОВЫЕ СООБЩЕНИЯ
         socket.on('chat:new_message', (msg) => {
-            // А. Если сообщение от того, с кем переписываемся ПРЯМО СЕЙЧАС
+            // Если пришло сообщение - немедленно убираем "печатает"
+            hideTyping(msg.senderId);
+
             if (currentReceiverId && msg.senderId === currentReceiverId) {
                 appendMessage(msg, false);
                 scrollToBottom();
                 markAsRead(currentReceiverId);
-            } 
-            // Б. Если сообщение от другого друга (мы в чате, но с другим)
-            else {
+            } else {
                 updateContactBadge(msg.senderId);
             }
         });
+
+        // 2. СЛУШАЕМ "КТО-ТО ПЕЧАТАЕТ"
+        socket.on('chat:typing', ({ senderId }) => {
+            // Показываем индикатор
+            showTyping(senderId);
+
+            // Сбрасываем старый таймер (если был)
+            if (typingTimeouts[senderId]) {
+                clearTimeout(typingTimeouts[senderId]);
+            }
+
+            // Ставим новый таймер на 10 секунд (как ты просил)
+            typingTimeouts[senderId] = setTimeout(() => {
+                hideTyping(senderId);
+            }, 10000);
+        });
     }
 
-    // Хелпер: Увеличить цифру на контакте
+    // --- ЛОГИКА ОТПРАВКИ "Я ПЕЧАТАЮ" ---
+    const input = document.getElementById('msg-input');
+    input.addEventListener('input', () => {
+        if (!socket || !currentReceiverId) return;
+
+        const now = Date.now();
+        // Отправляем сигнал не чаще, чем раз в 2 секунды
+        if (now - lastTypingSent > 2000) {
+            socket.emit('chat:typing', { receiverId: currentReceiverId });
+            lastTypingSent = now;
+        }
+    });
+
+    // --- ХЕЛПЕРЫ ВИЗУАЛА ---
+
+    function showTyping(userId) {
+        // 1. В списке контактов (слева)
+        const listIndicator = document.getElementById(`typing-list-${userId}`);
+        if (listIndicator) listIndicator.style.display = 'block';
+
+        // 2. В шапке (справа), если мы сейчас в чате с этим юзером
+        if (currentReceiverId === userId) {
+            const headerIndicator = document.getElementById('typing-header');
+            if (headerIndicator) headerIndicator.style.display = 'block';
+        }
+    }
+
+    function hideTyping(userId) {
+        // Скрываем везде
+        const listIndicator = document.getElementById(`typing-list-${userId}`);
+        if (listIndicator) listIndicator.style.display = 'none';
+
+        if (currentReceiverId === userId) {
+            const headerIndicator = document.getElementById('typing-header');
+            if (headerIndicator) headerIndicator.style.display = 'none';
+        }
+    }
+
     function updateContactBadge(senderId) {
         const badge = document.getElementById(`badge-${senderId}`);
         if (badge) {
@@ -37,7 +93,6 @@
         }
     }
 
-    // Хелпер: Сбросить цифру (когда открыли чат)
     function clearContactBadge(friendId) {
         const badge = document.getElementById(`badge-${friendId}`);
         if (badge) {
@@ -46,24 +101,33 @@
         }
     }
 
-    // 2. ВЫБОР ЧАТА
+    // --- ВЫБОР ЧАТА ---
     window.selectChat = async function(friendId, username, avatarUrl) {
         currentReceiverId = friendId;
         window.ACTIVE_CHAT_USER_ID = friendId;
 
-        // UI: Подсветка контакта
         document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
         const activeItem = document.querySelector(`.contact-item[data-id="${friendId}"]`);
         if (activeItem) activeItem.classList.add('active');
 
-        // 🔥 СБРАСЫВАЕМ ЦИФРУ У ЭТОГО КОНТАКТА
         clearContactBadge(friendId);
 
-        // UI: Открываем окно
+        // UI
         document.getElementById('chat-header').style.display = 'flex';
         document.getElementById('chat-form').style.display = 'flex';
         document.getElementById('header-username').innerText = username;
         document.getElementById('header-avatar').src = avatarUrl;
+        
+        // Скрываем индикатор печати при переключении (вдруг там висел старый)
+        const headerTyping = document.getElementById('typing-header');
+        if (headerTyping) headerTyping.style.display = 'none';
+
+        // Проверяем, не печатает ли этот друг прямо сейчас (вдруг таймер еще тикает)
+        // Если тикает - показываем индикатор сразу
+        const listIndicator = document.getElementById(`typing-list-${friendId}`);
+        if (listIndicator && listIndicator.style.display === 'block') {
+             if (headerTyping) headerTyping.style.display = 'block';
+        }
         
         const area = document.getElementById('messages-area');
         area.innerHTML = '<div style="padding:20px; color:#999; text-align:center;">Загрузка истории...</div>';
@@ -80,17 +144,14 @@
             });
             scrollToBottom();
             
-            // Помечаем прочитанным и обновляем ГЛОБАЛЬНЫЙ бейдж в меню
             await markAsRead(friendId);
-
         } catch (e) {
             area.innerHTML = '<div style="color:red; text-align:center;">Ошибка загрузки</div>';
         }
     };
 
-    // 3. ОТПРАВКА СООБЩЕНИЯ
+    // --- ОТПРАВКА ---
     const form = document.getElementById('chat-form');
-    const input = document.getElementById('msg-input');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
