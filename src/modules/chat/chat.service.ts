@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
@@ -6,7 +6,7 @@ import { RealtimeGateway } from '../../gateways/realtime.gateway';
 export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly rt: RealtimeGateway,
+    private readonly rt: RealtimeGateway, //
   ) {}
 
   async sendMessage(senderId: number, receiverId: number, content: string) {
@@ -19,6 +19,7 @@ export class ChatService {
       senderId,
       content,
       createdAt: msg.createdAt,
+      isEdited: false,
       senderName: (await this.prisma.user.findUnique({where: {id: senderId}}))?.username || 'User'
     });
 
@@ -29,47 +30,46 @@ export class ChatService {
     return this.prisma.message.findMany({
       where: {
         OR: [
+          // Если я отправитель - вижу всё (свои я удаляю полностью)
           { senderId: userId1, receiverId: userId2 },
-          { senderId: userId2, receiverId: userId1 },
+          // Если я получатель - вижу только те, что НЕ удалил для себя
+          { senderId: userId2, receiverId: userId1, deletedForReceiver: false },
         ],
       },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  // 🔥 ОБНОВЛЕННЫЙ МЕТОД: Добавляем подсчет непрочитанных для каждого друга
   async getContacts(userId: number) {
-    // 1. Получаем список друзей
     const requests = await this.prisma.friendRequest.findMany({
       where: { status: 'ACCEPTED', OR: [{ senderId: userId }, { receiverId: userId }] },
       include: { sender: true, receiver: true },
     });
 
-    // 2. Считаем непрочитанные сообщения, сгруппированные по отправителю
+    // Считаем только те, которые я не удалил для себя
     const unreadCounts = await this.prisma.message.groupBy({
       by: ['senderId'],
-      where: { receiverId: userId, isRead: false },
+      where: { receiverId: userId, isRead: false, deletedForReceiver: false },
       _count: { id: true },
     });
 
-    // Превращаем массив в удобный словарь: { id_отправителя: кол-во_сообщений }
     const unreadMap: Record<number, number> = {};
     unreadCounts.forEach((u) => {
       unreadMap[u.senderId] = u._count.id;
     });
 
-    // 3. Собираем итоговый список
     return requests.map((r) => {
       const friend = r.senderId === userId ? r.receiver : r.sender;
       return {
         id: friend.id,
         username: friend.username,
         avatar_url: friend.avatarUrl || '/static/default-avatar.png',
-        unreadCount: unreadMap[friend.id] || 0, // Вставляем цифру или 0
+        unreadCount: unreadMap[friend.id] || 0,
       };
     });
   }
 
+  // ... (методы markAsRead и getUnreadCount оставляем без изменений, но добавь фильтр deletedForReceiver: false) ...
   async markAsRead(userId: number, friendId: number) {
     await this.prisma.message.updateMany({
       where: { receiverId: userId, senderId: friendId, isRead: false },
@@ -80,10 +80,62 @@ export class ChatService {
 
   async getUnreadCount(userId: number) {
     const unreadGroups = await this.prisma.message.findMany({
-      where: { receiverId: userId, isRead: false },
+      where: { receiverId: userId, isRead: false, deletedForReceiver: false },
       distinct: ['senderId'],
       select: { senderId: true },
     });
     return unreadGroups.length;
+  }
+
+
+  // 🔥 НОВЫЕ МЕТОДЫ (Edit / Delete) 🔥
+
+  async editMessage(userId: number, messageId: number, newContent: string) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException();
+
+    // Редактировать можно только СВОИ сообщения
+    if (msg.senderId !== userId) throw new ForbiddenException('Нельзя редактировать чужие сообщения');
+
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { content: newContent, isEdited: true },
+    });
+
+    // Уведомляем обоих участников, что текст изменился
+    const eventData = { id: messageId, content: newContent, isEdited: true };
+    this.rt.emitData(msg.receiverId, 'chat:message_updated', eventData); // Собеседнику
+    this.rt.emitData(msg.senderId, 'chat:message_updated', eventData);   // Себе (для обновления UI)
+
+    return updated;
+  }
+
+  async deleteMessage(userId: number, messageId: number) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException();
+
+    // ЛОГИКА УДАЛЕНИЯ
+    if (msg.senderId === userId) {
+      // 1. Это МОЁ сообщение -> Удаляем полностью (Unsend)
+      await this.prisma.message.delete({ where: { id: messageId } });
+
+      // Сообщаем всем, чтобы удалить из DOM
+      this.rt.emitData(msg.receiverId, 'chat:message_deleted', { id: messageId });
+      this.rt.emitData(msg.senderId, 'chat:message_deleted', { id: messageId });
+      
+    } else if (msg.receiverId === userId) {
+      // 2. Это ЧУЖОЕ сообщение -> Скрываем только у меня
+      await this.prisma.message.update({
+        where: { id: messageId },
+        data: { deletedForReceiver: true },
+      });
+
+      // Сообщаем ТОЛЬКО мне (чтобы оно исчезло с экрана)
+      this.rt.emitData(userId, 'chat:message_deleted', { id: messageId });
+    } else {
+      throw new ForbiddenException();
+    }
+
+    return { ok: true };
   }
 }

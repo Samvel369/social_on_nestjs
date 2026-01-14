@@ -4,111 +4,57 @@
 
 {% block content %}
 <style>
-  .chat-container {
-    display: flex;
-    height: calc(100vh - 100px);
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  /* Левая колонка */
-  .chat-sidebar {
-    width: 250px;
-    background: #f7f7f7;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-  }
+  /* ... (Все старые стили chat-container, sidebar и т.д. оставляем как есть) ... */
+  .chat-container { display: flex; height: calc(100vh - 100px); background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+  .chat-sidebar { width: 250px; background: #f7f7f7; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
   .chat-sidebar h4 { padding: 15px; margin: 0; background: #eee; border-bottom: 1px solid #ddd; }
   .contact-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
-  .contact-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;
-    position: relative; 
-  }
+  .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s; position: relative; }
   .contact-item:hover { background: #e0e0e0; }
   .contact-item.active { background: #d0e0ff; }
   .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+  .contact-badge { background: #28a745; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold; margin-left: auto; }
+  .typing-indicator { font-size: 11px; color: #007bff; font-style: italic; display: none; margin-top: 2px; }
+  .typing-dots::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+  @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
+  .chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; }
+  .chat-header { padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; display: flex; align-items: center; gap: 10px; }
+  .messages-area { flex: 1; padding: 20px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 10px; }
   
-  .contact-badge {
-    background: #28a745; 
-    color: white;
-    border-radius: 12px;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: bold;
-    margin-left: auto; 
-  }
-
-  /* 🔥 СТИЛЬ ДЛЯ "ПЕЧАТАЕТ..." 🔥 */
-  .typing-indicator {
-    font-size: 11px;
-    color: #007bff; /* Синий цвет как у сообщений */
-    font-style: italic;
-    display: none; /* Скрыто по умолчанию */
-    margin-top: 2px;
-  }
-  /* Анимация точек */
-  .typing-dots::after {
-    content: '...';
-    animation: dots 1.5s steps(4, end) infinite;
-  }
-  @keyframes dots {
-    0%, 20% { content: ''; }
-    40% { content: '.'; }
-    60% { content: '..'; }
-    80%, 100% { content: '...'; }
-  }
-
-  /* Правая колонка */
-  .chat-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-  }
-  .chat-header {
-    padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; 
-    display: flex; align-items: center; gap: 10px;
-  }
-  
-  .messages-area {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-    background: #fdfdfd;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .msg {
-    max-width: 70%;
-    padding: 10px 15px;
-    border-radius: 12px;
-    font-size: 14px;
-    line-height: 1.4;
-    position: relative;
-    word-wrap: break-word;
-  }
+  .msg { max-width: 70%; padding: 10px 15px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; word-wrap: break-word; cursor: context-menu; /* Показываем, что можно нажать ПКМ */ }
+  .msg:hover { filter: brightness(0.95); } /* Эффект наведения */
   .msg.mine { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 2px; }
   .msg.theirs { align-self: flex-start; background: #e9ecef; color: black; border-bottom-left-radius: 2px; }
   .msg-time { font-size: 10px; opacity: 0.7; margin-top: 5px; text-align: right; display: block; }
+  
+  /* Пометка "изменено" */
+  .msg-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-left: 5px; }
 
-  .chat-input-area {
-    padding: 15px;
-    border-top: 1px solid #ddd;
-    background: #f7f7f7;
-    display: flex;
-    gap: 10px;
-  }
+  .chat-input-area { padding: 15px; border-top: 1px solid #ddd; background: #f7f7f7; display: flex; gap: 10px; }
   .chat-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
   .chat-input-area button { padding: 10px 20px; border-radius: 20px; border: none; background: #28a745; color: white; cursor: pointer; }
   .chat-input-area button:hover { background: #218838; }
+  
+  /* Кнопка отмены редактирования */
+  .cancel-edit-btn { background: #dc3545 !important; display: none; }
 
   .no-chat-selected { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+
+  /* 🔥 КОНТЕКСТНОЕ МЕНЮ 🔥 */
+  #context-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+    border-radius: 4px;
+    display: none;
+    z-index: 1000;
+    width: 150px;
+  }
+  #context-menu ul { list-style: none; padding: 0; margin: 0; }
+  #context-menu li { padding: 10px 15px; cursor: pointer; font-size: 14px; color: #333; }
+  #context-menu li:hover { background: #f0f0f0; }
+  #context-menu li.delete-option { color: #dc3545; }
 </style>
 
 <div class="chat-container">
@@ -120,20 +66,12 @@
           data-id="{{ friend.id }}" 
           data-username="{{ friend.username }}" 
           onclick="selectChat({{ friend.id }}, '{{ friend.username }}', '{{ friend.avatar_url }}')">
-        
         <img src="{{ friend.avatar_url }}" class="contact-avatar" alt="ava">
-        
         <div style="display:flex; flex-direction:column; flex:1;">
             <span style="font-weight:bold;">{{ friend.username }}</span>
-            <small class="typing-indicator" id="typing-list-{{ friend.id }}">
-               печатает<span class="typing-dots"></span>
-            </small>
+            <small class="typing-indicator" id="typing-list-{{ friend.id }}">печатает<span class="typing-dots"></span></small>
         </div>
-
-        <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">
-          {{ friend.unreadCount }}
-        </span>
-
+        <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">{{ friend.unreadCount }}</span>
       </li>
       {% else %}
       <li style="padding:15px; color:#999;">У вас пока нет друзей :(</li>
@@ -146,9 +84,7 @@
       <img src="" id="header-avatar" class="contact-avatar" alt="">
       <div style="display:flex; flex-direction:column;">
           <span id="header-username" style="font-weight:bold;">Имя</span>
-          <small class="typing-indicator" id="typing-header" style="margin-top:0;">
-             печатает<span class="typing-dots"></span>
-          </small>
+          <small class="typing-indicator" id="typing-header" style="margin-top:0;">печатает<span class="typing-dots"></span></small>
       </div>
     </div>
 
@@ -158,9 +94,17 @@
 
     <form class="chat-input-area" id="chat-form" style="display:none;">
       <input type="text" id="msg-input" placeholder="Напишите сообщение..." autocomplete="off">
-      <button type="submit">Send</button>
+      <button type="button" id="cancel-edit-btn" class="cancel-edit-btn">X</button>
+      <button type="submit" id="send-btn">Send</button>
     </form>
   </div>
+</div>
+
+<div id="context-menu">
+  <ul>
+    <li id="ctx-edit">Редактировать</li>
+    <li id="ctx-delete" class="delete-option">Удалить</li>
+  </ul>
 </div>
 
 <script src="/static/js/chat.js"></script>

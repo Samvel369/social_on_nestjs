@@ -148,6 +148,8 @@ model Message {
   receiverId Int
   createdAt  DateTime @default(now())
   isRead     Boolean  @default(false)
+  isEdited           Boolean @default(false)
+  deletedForReceiver Boolean @default(false)
 
   // Связи
   sender   User @relation("sent_messages", fields: [senderId], references: [id], onDelete: Cascade)
