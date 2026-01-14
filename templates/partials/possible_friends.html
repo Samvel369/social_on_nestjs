@@ -6,17 +6,19 @@
       
       <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
       
-      <div>
+      <div style="flex:1;">
           <a href="/profile/{{ u.id }}" style="text-decoration: none; color: inherit;">
             <strong>{{ u.username }}</strong>
           </a>
           <span class="time-ago" style="font-size: 0.8em; color: #999; margin-left: 8px;"></span>
       </div>
 
-      <div style="margin-left:auto; display:flex; gap:8px;">
-        <button onclick="friendsAction('send', {{ u.id }})">Добавить</button>
-        <button onclick="friendsAction('subscribe', {{ u.id }})">Подписаться</button>
-        <button onclick="friendsAction('dismiss', {{ u.id }})">Убрать</button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" data-action="request" data-user-id="{{ u.id }}">Добавить</button>
+        
+        <button type="button" data-action="subscribe" data-user-id="{{ u.id }}">Подписаться</button>
+        
+        <button type="button" data-action="dismiss" data-user-id="{{ u.id }}">Убрать</button>
       </div>
     </div>
   {% endfor %}
