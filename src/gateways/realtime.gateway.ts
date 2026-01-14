@@ -16,17 +16,14 @@ export class RealtimeGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
-  // Новый метод: Рассылка общего количества пользователей
   broadcastTotalUsers(total: number) {
     this.server.emit('stats:total', { total });
   }
 
-  // userId → Set(socketId)
   private socketsByUser = new Map<number, Set<string>>();
 
-  // ===== counters =====
   getOnlineCount(): number {
-    return this.socketsByUser.size; // уникальные юзеры
+    return this.socketsByUser.size;
   }
 
   private trackConnect(userId: number, socketId: string) {
@@ -60,10 +57,8 @@ export class RealtimeGateway implements OnGatewayConnection {
     const raw = (client.handshake.auth?.userId ?? client.handshake.query?.userId) as any;
     const uid = Number(raw);
     if (Number.isFinite(uid) && uid > 0) {
-      // авто-вступление в комнату user_<id>
       client.join(`user_${uid}`);
       this.trackConnect(uid, client.id);
-
       client.on('disconnect', () => this.trackDisconnect(uid, client.id));
     }
   }
@@ -82,7 +77,9 @@ export class RealtimeGateway implements OnGatewayConnection {
     client.emit('stats:online', { online: this.getOnlineCount() });
   }
 
-  // ===== main emitters (не менять сигнатуры) =====
+  // =================================================================
+  // СТАРЫЕ МЕТОДЫ (Для Друзей - ОСТАВЛЯЕМ КАК ЕСТЬ)
+  // =================================================================
   emitToUser(userId: number, event: string): void {
     try { this.server.to(`user_${userId}`).emit(event); } catch {}
   }
@@ -94,8 +91,16 @@ export class RealtimeGateway implements OnGatewayConnection {
     } catch {}
   }
 
-  // legacy alias
   emitToLegacyUserRoom(userId: number, event: string, payload?: any): void {
     try { this.server.to(`user_${userId}`).emit(event, payload); } catch {}
+  }
+
+  // =================================================================
+  // НОВЫЕ МЕТОДЫ (Для Чата - С ДАННЫМИ)
+  // =================================================================
+  emitData(userId: number, event: string, data: any): void {
+    try {
+      this.server.to(`user_${userId}`).emit(event, data);
+    } catch {}
   }
 }

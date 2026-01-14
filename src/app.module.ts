@@ -12,6 +12,7 @@ import { MyActionsModule } from './modules/my-actions/my-actions.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { WorldModule } from './modules/world/world.module';
 import { MainModule } from './modules/main/main.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MainModule } from './modules/main/main.module';
     ProfileModule,
     WorldModule,
     MainModule,
+    ChatModule
   ],
   providers: [
     RealtimeGateway,

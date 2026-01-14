@@ -3,14 +3,53 @@
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}Соцсеть{% endblock %}</title>
-
-  {# Во Flask был CSRF-токен; в Nest его либо не используем, либо подключим позже через csurf #}
   <meta name="csrf-token" content="{{ csrf_token | default('') }}">
-
-  {# Статические файлы теперь отдаются по /static/... #}
   <link rel="stylesheet" href="/static/style.css" />
-
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  
+  <style>
+    /* 🔥 СТИЛИ ДЛЯ УВЕДОМЛЕНИЙ И БЕЙДЖЕЙ 🔥 */
+    
+    /* Красная цифра в меню */
+    .menu-badge {
+      background-color: #ff4444;
+      color: white;
+      border-radius: 50%;
+      padding: 2px 6px;
+      font-size: 12px;
+      margin-left: 8px;
+      display: none; /* Скрыт по умолчанию */
+    }
+
+    /* Всплывашка справа снизу */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background: #333;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      min-width: 200px;
+      animation: slideIn 0.3s ease-out;
+      opacity: 0.95;
+      cursor: pointer;
+    }
+    .toast h5 { margin: 0 0 5px 0; color: #4facfe; font-size: 14px; }
+    .toast p { margin: 0; font-size: 13px; }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 0.95; }
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -32,6 +71,12 @@
         <li><a href="/api/main/">Главная</a></li>
         <li><a href="/api/profile/view">Профиль</a></li>
         <li><a href="/api/friends/view">Друзья</a></li>
+        <li>
+            <a href="/api/chat" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>💬 Сообщения</span>
+                <span id="global-msg-badge" class="menu-badge">0</span>
+            </a>
+        </li>
         <li><a href="/api/my-actions/view">Мои действия</a></li>
         <li><a href="/api/world/view">Наш мир</a></li>
         <li><a href="/api/auth/logout">Выход</a></li>
@@ -43,21 +88,6 @@
     </ul>
     </div>
 
-  {# Flash-сообщения были Flask-овые; если оставляем — прокидывай messages в контекст из контроллера #}
-  {% if messages and messages.length %}
-    <div id="flash-messages" style="position: fixed; top: 20px; right: 20px; background: #44c767; color: white; padding: 10px; border-radius: 8px;">
-      {% for message in messages %}
-        {{ message }}
-      {% endfor %}
-    </div>
-    <script>
-      setTimeout(() => {
-        const msg = document.getElementById('flash-messages');
-        if (msg) msg.style.display = 'none';
-      }, 3000);
-    </script>
-  {% endif %}
-
   <div class="content">
     {% block content %}{% endblock %}
   </div>
@@ -68,8 +98,13 @@
   </div>
 </div>
 
+<div id="toast-container" class="toast-container"></div>
+
 <script>
   window.CURRENT_USER_ID = {{ (current_user and (current_user.id or current_user.userId)) | default('null') }};
+  // Глобальная переменная: с кем мы сейчас переписываемся?
+  // Chat.js будет менять её. Если null - значит ни с кем.
+  window.ACTIVE_CHAT_USER_ID = null; 
 </script>
 
 {% if current_user and (current_user.id or current_user.userId) %}
@@ -80,11 +115,73 @@
 </script>
 {% endif %}
 
-{# Подключаем твои фронтовые скрипты из /static/js #}
 <script src="/static/js/socket.js"></script>
 <script src="/static/js/friends.js"></script>
-<div id="notification-container" class="notification-container"></div>
-<script src="/static/js/api.js"></script>
 
+<script>
+(function(){
+    const badge = document.getElementById('global-msg-badge');
+    const toastContainer = document.getElementById('toast-container');
+    let socket = window.socket;
+
+    // 1. При загрузке страницы узнаем кол-во непрочитанных
+    async function updateBadgeCount() {
+        if(!window.CURRENT_USER_ID) return;
+        try {
+            const res = await fetch('/api/chat/unread-count');
+            const data = await res.json();
+            setBadge(data.count);
+        } catch(e) {}
+    }
+
+    function setBadge(num) {
+        if (num > 0) {
+            badge.style.display = 'inline-block';
+            badge.innerText = num;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function showToast(senderName, text) {
+        const div = document.createElement('div');
+        div.className = 'toast';
+        div.innerHTML = `<h5>${senderName}</h5><p>${text.substring(0, 30)}${text.length>30?'...':''}</p>`;
+        
+        div.onclick = () => window.location.href = '/api/chat';
+        
+        toastContainer.appendChild(div);
+
+        // Удалить через 10 секунд
+        setTimeout(() => { div.remove(); }, 10000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateBadgeCount();
+        
+        // Пытаемся взять сокет
+        if (!socket && window.socket) socket = window.socket;
+        
+        if (socket) {
+            // Слушаем новые сообщения ВЕЗДЕ
+            socket.on('chat:new_message', (msg) => {
+                // Если мы прямо сейчас в чате с этим человеком - не уведомляем
+                if (window.ACTIVE_CHAT_USER_ID === msg.senderId) {
+                    return; 
+                }
+
+                // Иначе: показываем всплывашку и обновляем бейдж
+                showToast(msg.senderName || 'Друг', msg.content);
+                updateBadgeCount(); // Дергаем сервер, чтобы пересчитал уникальных
+            });
+        }
+    });
+
+    // Экспортируем функцию обновления бейджа (чтобы chat.js мог её вызывать)
+    window.updateGlobalBadge = updateBadgeCount;
+})();
+</script>
+
+<script src="/static/js/api.js"></script>
 </body>
 </html>

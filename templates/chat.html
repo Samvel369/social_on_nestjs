@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Сообщения{% endblock %}
+
+{% block content %}
+<style>
+  .chat-container {
+    display: flex;
+    height: calc(100vh - 100px);
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Левая колонка */
+  .chat-sidebar {
+    width: 250px;
+    background: #f7f7f7;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-sidebar h4 { padding: 15px; margin: 0; background: #eee; border-bottom: 1px solid #ddd; }
+  .contact-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+  .contact-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s;
+    position: relative; /* Для позиционирования бейджа */
+  }
+  .contact-item:hover { background: #e0e0e0; }
+  .contact-item.active { background: #d0e0ff; }
+  .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+  
+  /* 🔥 СТИЛЬ ДЛЯ ЦИФРЫ НА КОНТАКТЕ 🔥 */
+  .contact-badge {
+    background: #28a745; /* Зеленый цвет для личных сообщений */
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: auto; /* Отодвигает цифру вправо */
+  }
+
+  /* Правая колонка */
+  .chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+  }
+  .chat-header {
+    padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; font-weight: bold;
+    display: flex; align-items: center; gap: 10px;
+  }
+  
+  .messages-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #fdfdfd;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .msg {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    position: relative;
+    word-wrap: break-word;
+  }
+  .msg.mine { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 2px; }
+  .msg.theirs { align-self: flex-start; background: #e9ecef; color: black; border-bottom-left-radius: 2px; }
+  .msg-time { font-size: 10px; opacity: 0.7; margin-top: 5px; text-align: right; display: block; }
+
+  .chat-input-area {
+    padding: 15px;
+    border-top: 1px solid #ddd;
+    background: #f7f7f7;
+    display: flex;
+    gap: 10px;
+  }
+  .chat-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+  .chat-input-area button { padding: 10px 20px; border-radius: 20px; border: none; background: #28a745; color: white; cursor: pointer; }
+  .chat-input-area button:hover { background: #218838; }
+
+  .no-chat-selected { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+</style>
+
+<div class="chat-container">
+  <div class="chat-sidebar">
+    <h4>Контакты</h4>
+    <ul class="contact-list" id="contact-list">
+      {% for friend in contacts %}
+      <li class="contact-item" 
+          data-id="{{ friend.id }}" 
+          data-username="{{ friend.username }}" 
+          onclick="selectChat({{ friend.id }}, '{{ friend.username }}', '{{ friend.avatar_url }}')">
+        
+        <img src="{{ friend.avatar_url }}" class="contact-avatar" alt="ava">
+        <span>{{ friend.username }}</span>
+
+        <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">
+          {{ friend.unreadCount }}
+        </span>
+
+      </li>
+      {% else %}
+      <li style="padding:15px; color:#999;">У вас пока нет друзей :(</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="chat-main">
+    <div class="chat-header" id="chat-header" style="display:none;">
+      <img src="" id="header-avatar" class="contact-avatar" alt="">
+      <span id="header-username">Имя</span>
+    </div>
+
+    <div class="messages-area" id="messages-area">
+      <div class="no-chat-selected">Выберите друга для начала общения</div>
+    </div>
+
+    <form class="chat-input-area" id="chat-form" style="display:none;">
+      <input type="text" id="msg-input" placeholder="Напишите сообщение..." autocomplete="off">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+</div>
+
+<script src="/static/js/chat.js"></script>
+{% endblock %}
