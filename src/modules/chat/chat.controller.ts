@@ -1,7 +1,7 @@
 import { 
   Controller, Get, Post, Body, Param, ParseIntPipe, Render, UseGuards, Put, Delete 
 } from '@nestjs/common';
-import { ChatService } from './chat.service'; //
+import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -41,7 +41,6 @@ export class ChatController {
     return { count };
   }
 
-  // 🔥 EDIT
   @Put(':id')
   async editMessage(
     @CurrentUser() user: { userId: number },
@@ -51,12 +50,18 @@ export class ChatController {
     return this.service.editMessage(user.userId, id, body.content);
   }
 
-  // 🔥 DELETE
   @Delete(':id')
-  async deleteMessage(
-    @CurrentUser() user: { userId: number },
-    @Param('id', ParseIntPipe) id: number
-  ) {
+  async deleteMessage(@CurrentUser() user: { userId: number }, @Param('id', ParseIntPipe) id: number) {
     return this.service.deleteMessage(user.userId, id);
+  }
+
+  // 🔥 НОВЫЙ POST: Реакция
+  @Post(':id/react')
+  async react(
+    @CurrentUser() user: { userId: number },
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { emoji: string }
+  ) {
+    return this.service.toggleReaction(user.userId, id, body.emoji);
   }
 }

@@ -39,6 +39,9 @@ model User {
 
   sentMessages     Message[] @relation("sent_messages")
   receivedMessages Message[] @relation("received_messages")
+  
+  // Реакции пользователя
+  reactions        MessageReaction[]
 }
 
 model Action {
@@ -53,8 +56,8 @@ model Action {
   expiresAt      DateTime?
   
   // 🔥 CASCADE: Удаляем юзера -> удаляются его действия
-  user  User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  marks ActionMark[] // Если удаляется действие, удаляются лайки (автоматически через ActionMark настройки)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marks ActionMark[] 
 
   @@index([normalizedText])
   @@index([userId, isPublished, id], map: "idx_user_isPublished_id")
@@ -69,9 +72,8 @@ model ActionMark {
   actionId  Int
   timestamp DateTime @default(now())
 
-  // 🔥 CASCADE: Удаляем юзера -> удаляются его лайки
+  // 🔥 CASCADE
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // 🔥 CASCADE: Удаляем действие -> удаляются лайки к нему
   action Action @relation(fields: [actionId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -85,7 +87,7 @@ model FriendRequest {
   timestamp  DateTime            @default(now())
   status     FriendRequestStatus @default(PENDING)
 
-  // 🔥 CASCADE: Если удалился отправитель или получатель -> удаляем заявку
+  // 🔥 CASCADE
   sender   User @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
@@ -142,16 +144,32 @@ enum FriendRequestStatus {
 }
 
 model Message {
-  id         Int      @id @default(autoincrement())
-  content    String
-  senderId   Int
-  receiverId Int
-  createdAt  DateTime @default(now())
-  isRead     Boolean  @default(false)
-  isEdited           Boolean @default(false)
-  deletedForReceiver Boolean @default(false)
+  id                 Int      @id @default(autoincrement())
+  content            String
+  senderId           Int
+  receiverId         Int
+  createdAt          DateTime @default(now())
+  isRead             Boolean  @default(false)
+  isEdited           Boolean  @default(false)
+  deletedForReceiver Boolean  @default(false)
 
   // Связи
   sender   User @relation("sent_messages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("received_messages", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  // Реакции
+  reactions MessageReaction[]
+}
+
+model MessageReaction {
+  id        Int      @id @default(autoincrement())
+  messageId Int
+  userId    Int
+  emoji     String 
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
 }

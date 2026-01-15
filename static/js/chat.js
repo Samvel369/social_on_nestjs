@@ -1,17 +1,17 @@
 (function() {
     let currentReceiverId = null;
     let socket = null;
-    let editingMessageId = null; // ID сообщения, которое сейчас редактируем
+    let editingMessageId = null; 
     
     // Таймеры
     const typingTimeouts = {}; 
-    let lastTypingSent = 0; 
+    let lastTypingSent = 0;  // Объявляем переменную ОДИН раз здесь
 
     // Элементы контекстного меню
     const ctxMenu = document.getElementById('context-menu');
     const ctxEdit = document.getElementById('ctx-edit');
     const ctxDelete = document.getElementById('ctx-delete');
-    let ctxTargetId = null; // ID сообщения под курсором
+    let ctxTargetId = null; // ID сообщения, для которого открыто меню
 
     const initInterval = setInterval(() => {
         if (window.socket) {
@@ -22,12 +22,10 @@
     }, 100);
 
     function startChatLogic() {
-        // --- 1. СЛУШАЕМ СОБЫТИЯ ---
-
         socket.on('chat:new_message', (msg) => {
             hideTyping(msg.senderId);
             if (currentReceiverId && msg.senderId === currentReceiverId) {
-                appendMessage(msg, false); // Чужое сообщение
+                appendMessage(msg, false);
                 scrollToBottom();
                 markAsRead(currentReceiverId);
             } else {
@@ -41,30 +39,144 @@
             typingTimeouts[senderId] = setTimeout(() => hideTyping(senderId), 10000);
         });
 
-        // 🔥 ОБНОВЛЕНИЕ СООБЩЕНИЯ (EDIT)
         socket.on('chat:message_updated', (data) => {
             const msgEl = document.querySelector(`.msg[data-msg-id="${data.id}"]`);
             if (msgEl) {
-                // Ищем внутри div текста (он первый node или в span)
-                // Для надежности перерисуем контент, сохраняя время
-                const timeEl = msgEl.querySelector('.msg-time');
-                const timeHtml = timeEl ? timeEl.outerHTML : '';
+                // Обновляем текст
+                const contentSpan = msgEl.querySelector('.msg-content-text');
+                if(contentSpan) contentSpan.innerHTML = escapeHtml(data.content);
                 
-                msgEl.innerHTML = `${escapeHtml(data.content)} <span class="msg-edited">(изм.)</span> ${timeHtml}`;
+                // Обновляем пометку (изм.)
+                if (!msgEl.querySelector('.msg-edited')) {
+                    const timeEl = msgEl.querySelector('.msg-time');
+                    const editMark = document.createElement('span');
+                    editMark.className = 'msg-edited';
+                    editMark.innerText = '(изм.)';
+                    if (timeEl) msgEl.insertBefore(editMark, timeEl);
+                }
             }
         });
 
-        // 🔥 УДАЛЕНИЕ СООБЩЕНИЯ (DELETE)
         socket.on('chat:message_deleted', (data) => {
+            // Удаляем весь контейнер сообщения
             const msgEl = document.querySelector(`.msg[data-msg-id="${data.id}"]`);
             if (msgEl) {
-                msgEl.remove();
+                const container = msgEl.closest('.msg-container');
+                if (container) container.remove();
             }
+        });
+
+        // 🔥 ОБНОВЛЕНИЕ РЕАКЦИЙ
+        socket.on('chat:reaction_updated', (data) => {
+            renderReactions(data.id, data.reactions);
         });
     }
 
-    // --- ЛОГИКА INPUT (Печать + Отправка) ---
+    // --- ФУНКЦИИ РЕАКЦИЙ ---
+
+    // Вызывается из HTML (onclick)
+    window.sendReaction = async function(emoji) {
+        if (!ctxTargetId) return;
+        ctxMenu.style.display = 'none'; // Закрыть меню
+        try {
+            await fetch(`/api/chat/${ctxTargetId}/react`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emoji })
+            });
+        } catch(e) { console.error(e); }
+    };
+
+    function renderReactions(msgId, reactions) {
+        // Ищем контейнер сообщения
+        const msgEl = document.querySelector(`.msg[data-msg-id="${msgId}"]`);
+        if (!msgEl) return;
+        const container = msgEl.closest('.msg-container');
+        if (!container) return;
+
+        // Ищем или создаем ряд реакций
+        let row = container.querySelector('.reactions-row');
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'reactions-row';
+            container.appendChild(row);
+        }
+
+        row.innerHTML = ''; // Очищаем
+
+        if (!reactions || reactions.length === 0) return;
+
+        // Группируем реакции: { "❤️": [userId, userId], "😂": [userId] }
+        const groups = {};
+        reactions.forEach(r => {
+            if (!groups[r.emoji]) groups[r.emoji] = [];
+            groups[r.emoji].push(r.userId);
+        });
+
+        // Рисуем пузырьки
+        for (const [emoji, userIds] of Object.entries(groups)) {
+            const pill = document.createElement('div');
+            pill.className = 'reaction-pill';
+            const count = userIds.length;
+            const isMine = userIds.includes(window.CURRENT_USER_ID);
+            
+            if (isMine) pill.classList.add('my-reaction');
+            
+            pill.innerHTML = `${emoji} ${count}`;
+            
+            // Клик по пузырьку = тоже Toggle (лайкнуть/анлайкнуть)
+            pill.onclick = () => {
+                ctxTargetId = msgId; // Хак, чтобы функция знала ID
+                window.sendReaction(emoji);
+            };
+
+            row.appendChild(pill);
+        }
+    }
+
+    // --- МЕНЮ (ОТКРЫТИЕ) ---
+    // Используем делегирование, чтобы ловить клик по "три точки"
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.msg-menu-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation(); // Чтобы не сработало закрытие меню
+
+            const msgEl = btn.closest('.msg');
+            ctxTargetId = parseInt(msgEl.dataset.msgId);
+            const isMine = msgEl.classList.contains('mine');
+
+            // Настройка пунктов меню
+            ctxEdit.style.display = isMine ? 'flex' : 'none'; // Редактировать только свои
+            
+            // Позиционируем меню рядом с кнопкой
+            const rect = btn.getBoundingClientRect();
+            ctxMenu.style.top = `${rect.top + window.scrollY + 20}px`;
+            // Пытаемся выровнять, чтобы не вылезло за экран
+            if (rect.left > window.innerWidth - 200) {
+                 ctxMenu.style.left = `${rect.left - 150}px`;
+            } else {
+                 ctxMenu.style.left = `${rect.left}px`;
+            }
+            
+            ctxMenu.style.display = 'block';
+            return;
+        }
+
+        // Если клик мимо меню - закрываем
+        if (!e.target.closest('#context-menu')) {
+            ctxMenu.style.display = 'none';
+        }
+    });
+
+
+    // --- ЛОГИКА INPUT / FORM ---
     const input = document.getElementById('msg-input');
+    const form = document.getElementById('chat-form');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const sendBtn = document.getElementById('send-btn');
+    // ЗДЕСЬ БЫЛА ОШИБКА: повторное let lastTypingSent = 0; — Я УДАЛИЛ ЭТУ СТРОКУ
+
     input.addEventListener('input', () => {
         if (!socket || !currentReceiverId) return;
         const now = Date.now();
@@ -74,30 +186,20 @@
         }
     });
 
-    // --- ФОРМА ОТПРАВКИ ---
-    const form = document.getElementById('chat-form');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
-    const sendBtn = document.getElementById('send-btn');
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = input.value.trim();
         if (!text) return;
 
         if (editingMessageId) {
-            // РЕЖИМ РЕДАКТИРОВАНИЯ
             await submitEdit(text);
         } else {
-            // РЕЖИМ ОТПРАВКИ
             if (!currentReceiverId) return;
             await submitNewMessage(text);
         }
     });
 
-    // Отмена редактирования
-    cancelEditBtn.addEventListener('click', () => {
-        exitEditMode();
-    });
+    cancelEditBtn.addEventListener('click', exitEditMode);
 
     async function submitNewMessage(text) {
         input.value = '';
@@ -117,16 +219,13 @@
 
     async function submitEdit(text) {
         const msgId = editingMessageId;
-        exitEditMode(); // Сначала выходим из режима UI
-        
+        exitEditMode(); 
         try {
             await fetch(`/api/chat/${msgId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: text })
             });
-            // Сокет сам обновит UI, нам тут ничего делать не надо, 
-            // но для мгновенного отклика можно было бы обновить DOM вручную.
         } catch (e) { alert('Ошибка редактирования'); }
     }
 
@@ -137,6 +236,7 @@
         sendBtn.innerText = 'Save';
         cancelEditBtn.style.display = 'block';
         input.style.border = '2px solid #007bff';
+        ctxMenu.style.display = 'none'; // Закрыть меню если открыто
     }
 
     function exitEditMode() {
@@ -147,103 +247,78 @@
         input.style.border = '1px solid #ccc';
     }
 
-
-    // --- КОНТЕКСТНОЕ МЕНЮ (ПКМ) ---
-    document.addEventListener('contextmenu', (e) => {
-        const msgEl = e.target.closest('.msg');
-        if (msgEl) {
-            e.preventDefault(); // Блокируем стандартное меню
-            ctxTargetId = parseInt(msgEl.dataset.msgId);
-            const isMine = msgEl.classList.contains('mine');
-
-            // Показываем/скрываем кнопку редактирования (только для своих)
-            if (isMine) {
-                ctxEdit.style.display = 'block';
-            } else {
-                ctxEdit.style.display = 'none';
-            }
-
-            // Позиционируем меню
-            ctxMenu.style.top = `${e.pageY}px`;
-            ctxMenu.style.left = `${e.pageX}px`;
-            ctxMenu.style.display = 'block';
-        } else {
-            ctxMenu.style.display = 'none';
-        }
-    });
-
-    // Скрываем меню при клике в любом месте
-    document.addEventListener('click', () => ctxMenu.style.display = 'none');
-
-    // Клик по "Редактировать"
+    // --- КЛИКИ ПО МЕНЮ ---
     ctxEdit.addEventListener('click', () => {
         if (!ctxTargetId) return;
-        // Достаем текст из DOM (без времени и пометки изм)
         const msgEl = document.querySelector(`.msg[data-msg-id="${ctxTargetId}"]`);
         if (msgEl) {
-            // Грязный хак, чтобы взять только текст: клонируем и удаляем детей
-            const clone = msgEl.cloneNode(true);
-            clone.querySelectorAll('span').forEach(el => el.remove());
-            const text = clone.innerText.trim();
-            enterEditMode(ctxTargetId, text);
+             const contentSpan = msgEl.querySelector('.msg-content-text');
+             const text = contentSpan ? contentSpan.innerText : '';
+             enterEditMode(ctxTargetId, text);
         }
     });
 
-    // Клик по "Удалить"
     ctxDelete.addEventListener('click', async () => {
         if (!ctxTargetId) return;
-        try {
-            await fetch(`/api/chat/${ctxTargetId}`, { method: 'DELETE' });
-            // Сокет сам удалит элемент из DOM
-        } catch(e) { alert('Ошибка удаления'); }
+        ctxMenu.style.display = 'none';
+        try { await fetch(`/api/chat/${ctxTargetId}`, { method: 'DELETE' }); } catch(e) {}
     });
 
 
-    // --- ОСТАЛЬНЫЕ ХЕЛПЕРЫ (Выбор чата, рендер) ---
-    // ... (Функции markAsRead, showTyping, hideTyping, updateContactBadge копируем из прошлого файла или оставляем) ...
-    // ВАЖНО: Обновленный appendMessage с data-msg-id
+    // --- РЕНДЕРИНГ ---
 
-    function showTyping(userId) {
-        const listIndicator = document.getElementById(`typing-list-${userId}`);
-        if (listIndicator) listIndicator.style.display = 'block';
-        if (currentReceiverId === userId) {
-            const headerIndicator = document.getElementById('typing-header');
-            if (headerIndicator) headerIndicator.style.display = 'block';
+    // Обновленный рендер: теперь создаем структуру msg-container -> msg -> menu + reactions
+    function appendMessage(msg, isMine) {
+        const area = document.getElementById('messages-area');
+        
+        // Контейнер (чтобы реакции были снаружи пузыря)
+        const container = document.createElement('div');
+        container.className = `msg-container ${isMine ? 'mine' : 'theirs'}`;
+
+        const div = document.createElement('div');
+        div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
+        div.dataset.msgId = msg.id; 
+        
+        const time = new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const editedMark = msg.isEdited ? '<span class="msg-edited">(изм.)</span>' : '';
+
+        div.innerHTML = `
+            <span class="msg-content-text">${escapeHtml(msg.content)}</span>
+            ${editedMark}
+            <span class="msg-time">${time}</span>
+            <div class="msg-menu-btn">⋮</div> 
+        `; // ⋮ - символ вертикального троеточия
+
+        container.appendChild(div);
+        
+        // Место для реакций (сразу рендерим, если есть в истории)
+        if (msg.reactions && msg.reactions.length > 0) {
+            const row = document.createElement('div');
+            row.className = 'reactions-row';
+            container.appendChild(row);
         }
-    }
-    function hideTyping(userId) {
-        const listIndicator = document.getElementById(`typing-list-${userId}`);
-        if (listIndicator) listIndicator.style.display = 'none';
-        if (currentReceiverId === userId) {
-            const headerIndicator = document.getElementById('typing-header');
-            if (headerIndicator) headerIndicator.style.display = 'none';
-        }
-    }
-    function updateContactBadge(senderId) {
-        const badge = document.getElementById(`badge-${senderId}`);
-        if (badge) {
-            const current = parseInt(badge.innerText) || 0;
-            badge.innerText = current + 1;
-            badge.style.display = 'inline-block';
-        }
-    }
-    function clearContactBadge(friendId) {
-        const badge = document.getElementById(`badge-${friendId}`);
-        if (badge) {
-            badge.innerText = '0';
-            badge.style.display = 'none';
+
+        area.appendChild(container);
+
+        // Если были реакции при загрузке (history)
+        if (msg.reactions && msg.reactions.length > 0) {
+            renderReactions(msg.id, msg.reactions);
         }
     }
 
+    // ... (Helpers: scrollToBottom, escapeHtml, etc. без изменений) ...
     window.selectChat = async function(friendId, username, avatarUrl) {
         currentReceiverId = friendId;
         window.ACTIVE_CHAT_USER_ID = friendId;
-        exitEditMode(); // Сброс при смене чата
+        exitEditMode(); 
 
         document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
         const activeItem = document.querySelector(`.contact-item[data-id="${friendId}"]`);
         if (activeItem) activeItem.classList.add('active');
-        clearContactBadge(friendId);
+        
+        // Сброс бейджа
+        const badge = document.getElementById(`badge-${friendId}`);
+        if(badge) { badge.innerText='0'; badge.style.display='none'; }
 
         document.getElementById('chat-header').style.display = 'flex';
         document.getElementById('chat-form').style.display = 'flex';
@@ -269,39 +344,45 @@
             area.innerHTML = '<div style="color:red; text-align:center;">Ошибка загрузки</div>';
         }
     };
-
+    
     async function markAsRead(friendId) {
         try {
             await fetch(`/api/chat/mark-read/${friendId}`, { method: 'POST' });
             if (window.updateGlobalBadge) window.updateGlobalBadge();
         } catch(e) {}
     }
-
-    function appendMessage(msg, isMine) {
-        const area = document.getElementById('messages-area');
-        const div = document.createElement('div');
-        div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
-        // 🔥 ВАЖНО: Добавляем ID для поиска
-        div.dataset.msgId = msg.id; 
-        
-        const time = new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const editedMark = msg.isEdited ? '<span class="msg-edited">(изм.)</span>' : '';
-
-        div.innerHTML = `${escapeHtml(msg.content)} ${editedMark} <span class="msg-time">${time}</span>`;
-        area.appendChild(div);
+    function updateContactBadge(senderId) {
+        const badge = document.getElementById(`badge-${senderId}`);
+        if (badge) {
+            const current = parseInt(badge.innerText) || 0;
+            badge.innerText = current + 1;
+            badge.style.display = 'inline-block';
+        }
     }
-
+    function hideTyping(userId) {
+        const listIndicator = document.getElementById(`typing-list-${userId}`);
+        if (listIndicator) listIndicator.style.display = 'none';
+        if (currentReceiverId === userId) {
+            const headerIndicator = document.getElementById('typing-header');
+            if (headerIndicator) headerIndicator.style.display = 'none';
+        }
+    }
+    function showTyping(userId) {
+        const listIndicator = document.getElementById(`typing-list-${userId}`);
+        if (listIndicator) listIndicator.style.display = 'block';
+        if (currentReceiverId === userId) {
+            const headerIndicator = document.getElementById('typing-header');
+            if (headerIndicator) headerIndicator.style.display = 'block';
+        }
+    }
     function scrollToBottom() {
         const area = document.getElementById('messages-area');
         area.scrollTop = area.scrollHeight;
     }
-
     function escapeHtml(text) {
         if (!text) return text;
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    window.addEventListener('beforeunload', () => {
-        window.ACTIVE_CHAT_USER_ID = null;
-    });
+    window.addEventListener('beforeunload', () => { window.ACTIVE_CHAT_USER_ID = null; });
 })();

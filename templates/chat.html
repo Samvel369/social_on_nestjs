@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-  /* ... (Все старые стили chat-container, sidebar и т.д. оставляем как есть) ... */
+  /* Старые стили оставляем... */
   .chat-container { display: flex; height: calc(100vh - 100px); background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
   .chat-sidebar { width: 250px; background: #f7f7f7; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
   .chat-sidebar h4 { padding: 15px; margin: 0; background: #eee; border-bottom: 1px solid #ddd; }
@@ -20,41 +20,116 @@
   .chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; }
   .chat-header { padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; display: flex; align-items: center; gap: 10px; }
   .messages-area { flex: 1; padding: 20px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 10px; }
-  
-  .msg { max-width: 70%; padding: 10px 15px; border-radius: 12px; font-size: 14px; line-height: 1.4; position: relative; word-wrap: break-word; cursor: context-menu; /* Показываем, что можно нажать ПКМ */ }
-  .msg:hover { filter: brightness(0.95); } /* Эффект наведения */
-  .msg.mine { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 2px; }
-  .msg.theirs { align-self: flex-start; background: #e9ecef; color: black; border-bottom-left-radius: 2px; }
-  .msg-time { font-size: 10px; opacity: 0.7; margin-top: 5px; text-align: right; display: block; }
-  
-  /* Пометка "изменено" */
-  .msg-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-left: 5px; }
 
   .chat-input-area { padding: 15px; border-top: 1px solid #ddd; background: #f7f7f7; display: flex; gap: 10px; }
   .chat-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
   .chat-input-area button { padding: 10px 20px; border-radius: 20px; border: none; background: #28a745; color: white; cursor: pointer; }
   .chat-input-area button:hover { background: #218838; }
-  
-  /* Кнопка отмены редактирования */
   .cancel-edit-btn { background: #dc3545 !important; display: none; }
-
   .no-chat-selected { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+
+  /* 🔥 ОБНОВЛЕННЫЕ СТИЛИ СООБЩЕНИЙ 🔥 */
+  .msg-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+    position: relative;
+    margin-bottom: 5px;
+  }
+  .msg-container.mine { align-self: flex-end; align-items: flex-end; }
+  .msg-container.theirs { align-self: flex-start; align-items: flex-start; }
+
+  .msg {
+    padding: 10px 15px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    position: relative;
+    /* Убрали cursor: context-menu, теперь управление через кнопку */
+  }
+  .msg.mine { background: #007bff; color: white; border-bottom-right-radius: 2px; }
+  .msg.theirs { background: #e9ecef; color: black; border-bottom-left-radius: 2px; }
+
+  /* Кнопка "Три точки" (Menu Toggle) */
+  .msg-menu-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: inherit;
+    opacity: 0; /* Скрыта */
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 10px;
+    padding: 2px 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 4px;
+    transition: opacity 0.2s;
+  }
+  .msg:hover .msg-menu-btn { opacity: 0.7; }
+  .msg-menu-btn:hover { opacity: 1 !important; background: rgba(255,255,255,0.4); }
+
+  .msg-time { font-size: 10px; opacity: 0.7; margin-top: 5px; text-align: right; display: block; }
+  .msg-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-left: 5px; }
+
+  /* 🔥 СТИЛИ РЕАКЦИЙ 🔥 */
+  .reactions-row {
+    display: flex;
+    gap: 4px;
+    margin-top: -5px; /* Чуть наезжаем на сообщение или прижимаемся */
+    z-index: 10;
+    padding: 0 5px;
+  }
+  .reaction-pill {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .reaction-pill.my-reaction {
+    background: #e6f0ff;
+    border-color: #007bff;
+    color: #007bff;
+  }
 
   /* 🔥 КОНТЕКСТНОЕ МЕНЮ 🔥 */
   #context-menu {
-    position: absolute;
+    position: fixed; /* Fixed чтобы не зависеть от скролла */
     background: white;
     border: 1px solid #ccc;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-    border-radius: 4px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border-radius: 8px;
     display: none;
-    z-index: 1000;
-    width: 150px;
+    z-index: 9999;
+    width: 180px;
+    overflow: hidden;
   }
   #context-menu ul { list-style: none; padding: 0; margin: 0; }
-  #context-menu li { padding: 10px 15px; cursor: pointer; font-size: 14px; color: #333; }
-  #context-menu li:hover { background: #f0f0f0; }
+  #context-menu li { padding: 10px 15px; cursor: pointer; font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; }
+  #context-menu li:hover { background: #f5f5f5; }
   #context-menu li.delete-option { color: #dc3545; }
+  
+  /* Секция реакций в меню */
+  .menu-reactions {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-around;
+    background: #fafafa;
+  }
+  .menu-reaction-btn {
+    font-size: 20px;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .menu-reaction-btn:hover { transform: scale(1.3); }
+
 </style>
 
 <div class="chat-container">
@@ -101,9 +176,18 @@
 </div>
 
 <div id="context-menu">
+  <div class="menu-reactions">
+    <span class="menu-reaction-btn" onclick="sendReaction('❤️')">❤️</span>
+    <span class="menu-reaction-btn" onclick="sendReaction('😂')">😂</span>
+    <span class="menu-reaction-btn" onclick="sendReaction('😮')">😮</span>
+    <span class="menu-reaction-btn" onclick="sendReaction('😢')">😢</span>
+    <span class="menu-reaction-btn" onclick="sendReaction('👍')">👍</span>
+  </div>
+  
   <ul>
-    <li id="ctx-edit">Редактировать</li>
-    <li id="ctx-delete" class="delete-option">Удалить</li>
+    <li id="ctx-reply">↩️ Ответить (Скоро)</li>
+    <li id="ctx-edit">✏️ Редактировать</li>
+    <li id="ctx-delete" class="delete-option">🗑️ Удалить</li>
   </ul>
 </div>
 
