@@ -17,7 +17,7 @@
   {% endif %}
 
   <div>
-    <p><strong>Имя:</strong> {{ u.username | default('—') }}</p>
+    <p><strong>Логин:</strong> {{ u.username | default('—') }}</p>
     <p><strong>Email:</strong> {{ u.email | default('—') }}</p>
     {% if u.birthdate %}
       <p><strong>Дата рождения:</strong> {{ u.birthdate }}</p>

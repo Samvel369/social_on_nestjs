@@ -11,9 +11,15 @@ export class FriendsService {
   ) {}
 
   // ---------- helpers ----------
-  private mapUser(u: { id: number; username: string; avatarUrl: string | null }) {
-    return { id: u.id, username: u.username, avatar_url: u.avatarUrl ?? '' };
+  // 🔥 Обновленный маппер
+  private mapUser(u: { id: number; username: string; firstName?: string | null; lastName?: string | null; avatarUrl: string | null }) {
+    let displayName = u.username;
+    if (u.firstName) {
+        displayName = u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName;
+    }
+    return { id: u.id, username: displayName, avatar_url: u.avatarUrl ?? '' };
   }
+
   private notifyOne(userId: number, event: string) { try { this.rt.emitToUser(userId, event); } catch {} }
   private notifyBoth(a: number, b: number, event: string) { try { this.rt.emitToUsers([a, b], event); } catch {} }
   private async assertUserExists(userId: number) {
@@ -32,26 +38,25 @@ export class FriendsService {
     ]}});
   }
 
-  // ---------- reads ----------
+  // ---------- reads (ВЕЗДЕ ДОБАВЛЯЕМ firstName, lastName) ----------
   async getPossible(viewerId: number, keepMinutes = 10) {
     const since = new Date(Date.now() - keepMinutes * 60_000);
     const rows = await this.prisma.potentialFriendView.findMany({
       where: { viewerId, timestamp: { gte: since } },
-      include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+      include: { user: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } } },
       orderBy: { timestamp: 'desc' },
     });
 
-    // 🔥 ИСПРАВЛЕНИЕ: Теперь мы отдаем объект с timestamp!
     return rows.map(r => ({
-      ...this.mapUser(r.user), // id, username, avatar_url
-      timestamp: r.timestamp   // добавляем дату, чтобы JS мог считать таймер
+      ...this.mapUser(r.user), 
+      timestamp: r.timestamp   
     }));
   }
 
   async getIncoming(userId: number) {
     const rows = await this.prisma.friendRequest.findMany({
       where: { receiverId: userId, status: FriendRequestStatus.PENDING },
-      include: { sender: { select: { id: true, username: true, avatarUrl: true } } },
+      include: { sender: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } } },
       orderBy: { id: 'desc' },
     });
     return rows.map(r => ({ id: r.id, sender: this.mapUser(r.sender) }));
@@ -60,7 +65,7 @@ export class FriendsService {
   async getOutgoing(userId: number) {
     const rows = await this.prisma.friendRequest.findMany({
       where: { senderId: userId, status: FriendRequestStatus.PENDING },
-      include: { receiver: { select: { id: true, username: true, avatarUrl: true } } },
+      include: { receiver: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } } },
       orderBy: { id: 'desc' },
     });
     return rows.map(r => ({ id: r.id, receiver: this.mapUser(r.receiver) }));
@@ -70,8 +75,8 @@ export class FriendsService {
     const rows = await this.prisma.friendRequest.findMany({
       where: { status: FriendRequestStatus.ACCEPTED, OR: [{ senderId: userId }, { receiverId: userId }] },
       include: {
-        sender: { select: { id: true, username: true, avatarUrl: true } },
-        receiver: { select: { id: true, username: true, avatarUrl: true } },
+        sender: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } },
+        receiver: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } },
       },
       orderBy: { id: 'desc' },
     });
@@ -81,7 +86,7 @@ export class FriendsService {
   async getSubscribers(userId: number) {
     const rows = await this.prisma.subscriber.findMany({
       where: { ownerId: userId },
-      include: { subscriber: { select: { id: true, username: true, avatarUrl: true } } },
+      include: { subscriber: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } } },
       orderBy: { id: 'desc' },
     });
     return rows.map(r => this.mapUser(r.subscriber));
@@ -90,13 +95,13 @@ export class FriendsService {
   async getSubscriptions(userId: number) {
     const rows = await this.prisma.subscriber.findMany({
       where: { subscriberId: userId },
-      include: { owner: { select: { id: true, username: true, avatarUrl: true } } },
+      include: { owner: { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true } } },
       orderBy: { id: 'desc' },
     });
     return rows.map(r => this.mapUser(r.owner));
   }
 
-  // ---------- actions (idempotent) ----------
+  // ---------- actions (без изменений) ----------
   async sendFriendRequest(userId: number, toUserId: number) {
     if (userId === toUserId) throw new BadRequestException('self request');
     await this.assertUserExists(toUserId);

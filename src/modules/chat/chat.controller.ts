@@ -2,19 +2,42 @@ import {
   Controller, Get, Post, Body, Param, ParseIntPipe, Render, UseGuards, Put, Delete 
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { PrismaService } from '../../prisma/prisma.service'; // 🔥 Добавили
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+// Хелпер
+function getDisplayName(user: any) {
+  if (user.firstName) {
+    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
+  }
+  return user.username;
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly service: ChatService) {}
+  constructor(
+    private readonly service: ChatService,
+    private readonly prisma: PrismaService // 🔥 Инжектим
+  ) {}
 
   @Get()
   @Render('chat.html')
   async viewChat(@CurrentUser() user: { userId: number }) {
+    // 🔥 Достаем полные данные пользователя для меню
+    const me = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    
+    const current_user = me ? {
+      id: me.id,
+      userId: me.id,
+      username: getDisplayName(me), // Красивое имя
+      avatar_url: me.avatarUrl ?? '',
+    } : null;
+
     return {
-      user,
+      user, // Оставляем для совместимости (если где-то используется user.userId)
+      current_user, // Для base.html (меню)
       contacts: await this.service.getContacts(user.userId),
     };
   }
@@ -55,7 +78,6 @@ export class ChatController {
     return this.service.deleteMessage(user.userId, id);
   }
 
-  // 🔥 НОВЫЙ POST: Реакция
   @Post(':id/react')
   async react(
     @CurrentUser() user: { userId: number },

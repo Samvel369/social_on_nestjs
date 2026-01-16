@@ -5,13 +5,20 @@ import { CurrentUser, AuthUser } from '../../common/decorators/current-user.deco
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
+function getDisplayName(user: any) {
+  if (user.firstName) {
+    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
+  }
+  return user.username;
+}
+
 @Controller()
 export class MainController {
   constructor(private readonly mainService: MainService, private readonly prisma: PrismaService,
   private readonly rt: RealtimeGateway,) {}
 
   // Гостевая домашняя
-  @Get()              // /api
+  @Get()              
   @Render('index.html')
   root() {
     return {
@@ -19,7 +26,7 @@ export class MainController {
     };
   }
 
-  // Алиас на тот же шаблон, если заходят на /api/
+  // Алиас
   @Get('index')
   @Render('index.html')
   homeSlash() {
@@ -28,15 +35,18 @@ export class MainController {
 
   // Авторизованная главная
   @UseGuards(JwtAuthGuard)
-  @Get('main')        // /api/main
+  @Get('main')        
   @Render('main.html')
   async main(@CurrentUser() user: AuthUser) {
-    const current_user = {
-      id: user.userId,
-      userId: user.userId,
-      username: user.username,
-      avatar_url: (user as any)?.avatarUrl ?? '',
-    };
+    // 🔥 Достаем полные данные для имени
+    const me = await this.prisma.user.findUnique({ where: { id: user.userId } });
+    
+    const current_user = me ? {
+      id: me.id,
+      userId: me.id,
+      username: getDisplayName(me), // 🔥 Красивое имя
+      avatar_url: me.avatarUrl ?? '',
+    } : null;
 
     const top_actions = await this.mainService.getTopActions();
 

@@ -3,22 +3,44 @@ import {
   UseGuards, Render,
 } from '@nestjs/common';
 import { FriendsService } from './friends.service';
+import { PrismaService } from '../../prisma/prisma.service'; // 🔥 Добавил импорт
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 type AuthUser = { userId: number; username: string };
 
+function getDisplayName(user: any) {
+  if (user.firstName) {
+    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
+  }
+  return user.username;
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('friends')
 export class FriendsController {
-  constructor(private readonly service: FriendsService) {}
+  constructor(
+    private readonly service: FriendsService,
+    private readonly prisma: PrismaService // 🔥 Инжектим Prisma
+  ) {}
 
   // ---------- FULL PAGE ----------
   @Get(['', 'view'])
   @Render('friends.html')
   async page(@CurrentUser() u: AuthUser, @Query('keep') keep?: string) {
     const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
+
+    // 🔥 Достаем текущего юзера для меню
+    const me = await this.prisma.user.findUnique({ where: { id: u.userId } });
+    const current_user = me ? {
+        id: me.id,
+        userId: me.id,
+        username: getDisplayName(me),
+        avatar_url: me.avatarUrl ?? '',
+    } : null;
+
     return {
+      current_user, // 🔥 Передаем в шаблон
       keep_minutes,
       possible_friends: await this.service.getPossible(u.userId, keep_minutes),
       incoming_requests: await this.service.getIncoming(u.userId),
@@ -29,6 +51,11 @@ export class FriendsController {
     };
   }
 
+  // ... (Остальные методы partials и actions остаются без изменений)
+  // Я их скрыл для краткости, так как мы их не меняли, кроме импорта сверху.
+  // Если у тебя нет их копии, я могу скинуть полный файл, но там много строк.
+  // Главное - замени метод page и конструктор.
+  
   // ---------- PARTIALS ----------
   @Get(['partials/possible', 'partials/possible_friends'])
   @Render('partials/possible_friends.html')

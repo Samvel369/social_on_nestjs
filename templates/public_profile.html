@@ -8,10 +8,14 @@
     <img src="{{ user.avatar_url or url_for('static', filename='default-avatar.png') }}" width="120" height="120" style="border-radius: 50%;">
 
     <div>
-        <p><strong>Имя:</strong> {{ user.username }}</p>
+        <h3 style="margin: 0; font-size: 24px;">
+            {{ user.displayName }}
+        </h3>
+        <p style="margin: 5px 0 15px 0; color: #666;">@{{ user.username }}</p>
+
         <p><strong>Email:</strong> {{ user.email }}</p>
         {% if user.birthdate %}
-        <p><strong>Дата рождения:</strong> {{ user.birthdate.strftime('%d.%m.%Y') }}</p>
+        <p><strong>Дата рождения:</strong> {{ user.birthdate }}</p>
         {% endif %}
         <p><strong>Статус:</strong> {{ user.status }}</p>
     </div>

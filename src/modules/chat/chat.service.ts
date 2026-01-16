@@ -2,6 +2,14 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
+// Хелпер для имени (локальный)
+function getDisplayName(user: any) {
+  if (user.firstName) {
+    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
+  }
+  return user.username;
+}
+
 @Injectable()
 export class ChatService {
   constructor(
@@ -14,14 +22,18 @@ export class ChatService {
       data: { senderId, receiverId, content, isRead: false },
     });
 
+    // Получаем данные отправителя для красивого имени
+    const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
+    const senderName = sender ? getDisplayName(sender) : 'User';
+
     const eventData = {
       id: msg.id,
       senderId,
       content,
       createdAt: msg.createdAt,
       isEdited: false,
-      senderName: (await this.prisma.user.findUnique({ where: { id: senderId } }))?.username || 'User',
-      reactions: [] // Сразу отправляем пустой массив реакций
+      senderName: senderName, // 🔥 Отправляем красивое имя
+      reactions: [] 
     };
 
     this.rt.emitData(receiverId, 'chat:new_message', eventData);
@@ -37,7 +49,7 @@ export class ChatService {
           { senderId: userId2, receiverId: userId1, deletedForReceiver: false },
         ],
       },
-      include: { reactions: true }, // 🔥 Подгружаем реакции
+      include: { reactions: true },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -61,7 +73,7 @@ export class ChatService {
       const friend = r.senderId === userId ? r.receiver : r.sender;
       return {
         id: friend.id,
-        username: friend.username,
+        username: getDisplayName(friend), // 🔥 Используем хелпер
         avatar_url: friend.avatarUrl || '/static/default-avatar.png',
         unreadCount: unreadMap[friend.id] || 0,
       };
@@ -95,7 +107,6 @@ export class ChatService {
       data: { content: newContent, isEdited: true },
     });
 
-    // При редактировании реакции не меняются, но можно их подгрузить на всякий случай
     const updatedWithReactions = await this.prisma.message.findUnique({
         where: { id: messageId },
         include: { reactions: true }
@@ -134,12 +145,10 @@ export class ChatService {
     return { ok: true };
   }
 
-  // 🔥 НОВЫЙ МЕТОД: ЛАЙКИ / РЕАКЦИИ 🔥
   async toggleReaction(userId: number, messageId: number, emoji: string) {
     const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!msg) throw new NotFoundException();
 
-    // Проверяем, есть ли уже такая реакция от этого юзера
     const existing = await this.prisma.messageReaction.findUnique({
       where: {
         messageId_userId_emoji: { messageId, userId, emoji }
@@ -147,21 +156,17 @@ export class ChatService {
     });
 
     if (existing) {
-      // Если есть — удаляем (Toggle OFF)
       await this.prisma.messageReaction.delete({ where: { id: existing.id } });
     } else {
-      // Если нет — создаем (Toggle ON)
       await this.prisma.messageReaction.create({
         data: { messageId, userId, emoji }
       });
     }
 
-    // Получаем актуальный список всех реакций для этого сообщения
     const allReactions = await this.prisma.messageReaction.findMany({
       where: { messageId }
     });
 
-    // Отправляем событие обновления
     const eventData = { id: messageId, reactions: allReactions };
     this.rt.emitData(msg.senderId, 'chat:reaction_updated', eventData);
     this.rt.emitData(msg.receiverId, 'chat:reaction_updated', eventData);

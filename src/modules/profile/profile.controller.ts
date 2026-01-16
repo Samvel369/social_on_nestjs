@@ -14,7 +14,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProfileService } from './profile.service';
-import { UpdateProfileDto } from './profile.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { Res } from '@nestjs/common';
@@ -22,29 +21,48 @@ import { Response } from 'express';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'static/uploads');
 
+// 🔥 ОБНОВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ 🔥
+function getDisplayName(user: any) {
+  // Если есть хотя бы Имя
+  if (user.firstName) {
+    // Если есть еще и Фамилия - склеиваем
+    if (user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    // Иначе возвращаем просто Имя
+    return user.firstName;
+  }
+  // Если имени нет вообще - возвращаем логин
+  return user.username;
+}
+
 @Controller('profile')
 export class ProfileController {
   constructor(private readonly service: ProfileService) {}
 
   // ====================== HTML (SSR) ======================
 
-  /** Мой профиль (страница) */
   @UseGuards(JwtAuthGuard)
   @Get('view')
-  @Render('profile.html')
+  @Render('profile.html') // Убедись, что файл называется так, как у тебя в папке (public_profile.html или profile.html)
   async view(@CurrentUser() user: AuthUser) {
     const me = await this.service.getMyProfile(user.userId);
+    const displayName = getDisplayName(me.user);
 
     const current_user = {
       id: user.userId,
       userId: user.userId,
-      username: me.user.username,
+      username: displayName, // В меню тоже будет красивое имя
+      original_username: me.user.username,
       avatar_url: me.user.avatarUrl ?? '',
     };
 
     const userView = {
       id: me.user.id,
       username: me.user.username,
+      firstName: me.user.firstName || '',
+      lastName: me.user.lastName || '',
+      displayName: displayName, // Главный заголовок профиля
       email: me.user.email ?? '',
       avatar_url: me.user.avatarUrl ?? '',
       birthdate: me.user.birthdate
@@ -57,15 +75,16 @@ export class ProfileController {
     return { current_user, user: userView};
   }
 
-  /** Публичный профиль (страница) */
   @Get('public/:id')
   @Render('public_profile.html')
   async publicProfile(@Param('id', ParseIntPipe) id: number) {
     const data = await this.service.viewProfile(0, id);
+    const displayName = getDisplayName(data.user);
 
     const userView = {
       id: data.user.id,
       username: data.user.username,
+      displayName: displayName, // 🔥
       avatar_url: data.user.avatarUrl ?? '',
       birthdate: data.user.birthdate
         ? new Date(data.user.birthdate).toISOString().slice(0, 10)
@@ -75,13 +94,12 @@ export class ProfileController {
     };
 
     return {
-      current_user: null,
+      current_user: null, // Для публичного просмотра можно оставить null или передать текущего юзера, если нужно меню
       user: userView,
       view: data.view,
     };
   }
 
-  /** Форма редактирования */
   @UseGuards(JwtAuthGuard)
   @Get('edit_profile')
   @Render('edit_profile.html')
@@ -91,12 +109,14 @@ export class ProfileController {
     const current_user = {
       id: user.userId,
       userId: user.userId,
-      username: me.user.username,
+      username: getDisplayName(me.user),
       avatar_url: me.user.avatarUrl ?? '',
     };
 
     const userView = {
       username: me.user.username,
+      firstName: me.user.firstName || '',
+      lastName: me.user.lastName || '',
       email: me.user.email ?? '',
       avatar_url: me.user.avatarUrl ?? '',
       birthdate: me.user.birthdate
@@ -109,12 +129,10 @@ export class ProfileController {
     return { current_user, user: userView };
   }
 
-  /** Сохранение профиля (multipart, AJAX) */
   @UseGuards(JwtAuthGuard)
   @Post('edit_profile')
   @UseInterceptors(
     FileInterceptor('avatar', {
-      // важно: сохраняем файл сразу в static/uploads
       dest: UPLOAD_DIR,
     }),
   )
@@ -123,15 +141,15 @@ export class ProfileController {
     @UploadedFile() file: Express.Multer.File,
     @Body() body: any,
   ) {
-    // 1) текстовые поля
-    const dto: UpdateProfileDto = {
-      birthdate: body.birthdate || null, // ОЖИДАЕМ YYYY-MM-DD
+    const dto = {
+      firstName: body.firstName || '',
+      lastName: body.lastName || '',
+      birthdate: body.birthdate || null,
       status: body.status || '',
       about: body.about || '',
     };
     await this.service.updateProfile(user.userId, dto);
 
-    // 2) аватар (если прислали)
     if (file) {
       await this.service.updateAvatar(user.userId, file);
     }
@@ -146,11 +164,7 @@ export class ProfileController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.service.deleteAccount(user.userId);
-
-    // Удаляем куку с токеном, чтобы разлогинить браузер
     res.clearCookie('token');
-
-    // Ответ для фронтенда (редирект на главную)
     return { ok: true, redirect: '/' };
   }
 
@@ -170,7 +184,7 @@ export class ProfileController {
 
   @UseGuards(JwtAuthGuard)
   @Patch()
-  async patch(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+  async patch(@CurrentUser() user: AuthUser, @Body() dto: any) {
     return this.service.updateProfile(user.userId, dto);
   }
 
