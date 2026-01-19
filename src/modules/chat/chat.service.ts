@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
-// Хелпер для имени (локальный)
 function getDisplayName(user: any) {
   if (user.firstName) {
     return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
@@ -17,14 +16,30 @@ export class ChatService {
     private readonly rt: RealtimeGateway,
   ) {}
 
-  async sendMessage(senderId: number, receiverId: number, content: string) {
+  async sendMessage(senderId: number, receiverId: number, content: string, replyToIds?: number[]) {
+    const createData: any = { senderId, receiverId, content, isRead: false };
+
+    if (replyToIds && replyToIds.length > 0) {
+      createData.replyTo = { connect: replyToIds.map((id) => ({ id })) };
+    }
+
     const msg = await this.prisma.message.create({
-      data: { senderId, receiverId, content, isRead: false },
+      data: createData,
+      include: {
+        replyTo: {
+          select: { id: true, content: true, sender: { select: { id: true, username: true, firstName: true, lastName: true } } }
+        }
+      }
     });
 
-    // Получаем данные отправителя для красивого имени
     const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
     const senderName = sender ? getDisplayName(sender) : 'User';
+
+    const repliesData = msg.replyTo.map(r => ({
+      id: r.id,
+      content: r.content,
+      senderName: getDisplayName(r.sender)
+    }));
 
     const eventData = {
       id: msg.id,
@@ -32,11 +47,13 @@ export class ChatService {
       content,
       createdAt: msg.createdAt,
       isEdited: false,
-      senderName: senderName, // 🔥 Отправляем красивое имя
-      reactions: [] 
+      senderName,
+      reactions: [],
+      replyTo: repliesData
     };
 
     this.rt.emitData(receiverId, 'chat:new_message', eventData);
+    this.rt.emitData(senderId, 'chat:new_message', eventData); 
 
     return msg;
   }
@@ -49,7 +66,12 @@ export class ChatService {
           { senderId: userId2, receiverId: userId1, deletedForReceiver: false },
         ],
       },
-      include: { reactions: true },
+      include: { 
+        reactions: true,
+        replyTo: {
+          select: { id: true, content: true, sender: { select: { id: true, username: true, firstName: true, lastName: true } } }
+        }
+      },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -60,23 +82,40 @@ export class ChatService {
       include: { sender: true, receiver: true },
     });
 
-    const unreadCounts = await this.prisma.message.groupBy({
-      by: ['senderId'],
-      where: { receiverId: userId, isRead: false, deletedForReceiver: false },
-      _count: { id: true },
-    });
+    const contacts = [];
 
-    const unreadMap: Record<number, number> = {};
-    unreadCounts.forEach((u) => { unreadMap[u.senderId] = u._count.id; });
-
-    return requests.map((r) => {
+    for (const r of requests) {
       const friend = r.senderId === userId ? r.receiver : r.sender;
-      return {
+      
+      const unreadCount = await this.prisma.message.count({
+        where: { senderId: friend.id, receiverId: userId, isRead: false, deletedForReceiver: false }
+      });
+
+      const lastMsg = await this.prisma.message.findFirst({
+        where: {
+          OR: [
+            { senderId: userId, receiverId: friend.id },
+            { senderId: friend.id, receiverId: userId, deletedForReceiver: false }
+          ]
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { content: true, createdAt: true }
+      });
+
+      contacts.push({
         id: friend.id,
-        username: getDisplayName(friend), // 🔥 Используем хелпер
+        username: getDisplayName(friend),
         avatar_url: friend.avatarUrl || '/static/default-avatar.png',
-        unreadCount: unreadMap[friend.id] || 0,
-      };
+        unreadCount,
+        lastMessage: lastMsg ? lastMsg.content : null, 
+        lastMessageTime: lastMsg ? lastMsg.createdAt : null
+      });
+    }
+
+    return contacts.sort((a, b) => {
+        const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+        const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+        return timeB - timeA;
     });
   }
 
@@ -97,50 +136,72 @@ export class ChatService {
     return unreadGroups.length;
   }
 
+  // 🔥 ИСПРАВЛЕННЫЙ МЕТОД РЕДАКТИРОВАНИЯ
   async editMessage(userId: number, messageId: number, newContent: string) {
     const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!msg) throw new NotFoundException();
-    if (msg.senderId !== userId) throw new ForbiddenException('Нельзя редактировать чужие сообщения');
+    if (msg.senderId !== userId) throw new ForbiddenException();
 
-    await this.prisma.message.update({
-      where: { id: messageId },
-      data: { content: newContent, isEdited: true },
+    // 🔥 ПРОВЕРКА: Если текст не изменился - ничего не делаем
+    if (msg.content === newContent) {
+        return { ok: true, noChange: true };
+    }
+
+    await this.prisma.message.update({ 
+        where: { id: messageId }, 
+        data: { content: newContent, isEdited: true } 
     });
 
-    const updatedWithReactions = await this.prisma.message.findUnique({
+    const updated = await this.prisma.message.findUnique({
         where: { id: messageId },
-        include: { reactions: true }
+        include: { 
+          reactions: true,
+          replyTo: {
+            select: { id: true, content: true, sender: { select: { id: true, username: true, firstName: true, lastName: true } } }
+          }
+        }
     });
 
     const eventData = { 
         id: messageId, 
         content: newContent, 
         isEdited: true, 
-        reactions: updatedWithReactions?.reactions || [] 
+        reactions: updated?.reactions || [],
+        replyTo: updated?.replyTo?.map(r => ({ id: r.id, content: r.content, senderName: getDisplayName(r.sender) })) || []
     };
     
     this.rt.emitData(msg.receiverId, 'chat:message_updated', eventData);
     this.rt.emitData(msg.senderId, 'chat:message_updated', eventData);
-
     return { ok: true };
   }
 
   async deleteMessage(userId: number, messageId: number) {
-    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
-    if (!msg) throw new NotFoundException();
+    return this.deleteMessagesBulk(userId, [messageId]);
+  }
 
-    if (msg.senderId === userId) {
-      await this.prisma.message.delete({ where: { id: messageId } });
-      this.rt.emitData(msg.receiverId, 'chat:message_deleted', { id: messageId });
-      this.rt.emitData(msg.senderId, 'chat:message_deleted', { id: messageId });
-    } else if (msg.receiverId === userId) {
-      await this.prisma.message.update({
-        where: { id: messageId },
-        data: { deletedForReceiver: true },
-      });
-      this.rt.emitData(userId, 'chat:message_deleted', { id: messageId });
-    } else {
-      throw new ForbiddenException();
+  async deleteMessagesBulk(userId: number, messageIds: number[]) {
+    const messages = await this.prisma.message.findMany({ where: { id: { in: messageIds } } });
+    const toDeleteIds: number[] = [];
+    const toHideIds: number[] = [];
+
+    for (const msg of messages) {
+      if (msg.senderId === userId) toDeleteIds.push(msg.id);
+      else if (msg.receiverId === userId) toHideIds.push(msg.id);
+    }
+
+    if (toDeleteIds.length > 0) {
+      await this.prisma.message.deleteMany({ where: { id: { in: toDeleteIds } } });
+      for (const msg of messages) {
+         if (toDeleteIds.includes(msg.id)) {
+             this.rt.emitData(msg.receiverId, 'chat:message_deleted', { id: msg.id });
+             this.rt.emitData(msg.senderId, 'chat:message_deleted', { id: msg.id });
+         }
+      }
+    }
+
+    if (toHideIds.length > 0) {
+      await this.prisma.message.updateMany({ where: { id: { in: toHideIds } }, data: { deletedForReceiver: true } });
+      toHideIds.forEach(id => this.rt.emitData(userId, 'chat:message_deleted', { id }));
     }
     return { ok: true };
   }
@@ -150,27 +211,16 @@ export class ChatService {
     if (!msg) throw new NotFoundException();
 
     const existing = await this.prisma.messageReaction.findUnique({
-      where: {
-        messageId_userId_emoji: { messageId, userId, emoji }
-      }
+      where: { messageId_userId_emoji: { messageId, userId, emoji } }
     });
 
-    if (existing) {
-      await this.prisma.messageReaction.delete({ where: { id: existing.id } });
-    } else {
-      await this.prisma.messageReaction.create({
-        data: { messageId, userId, emoji }
-      });
-    }
+    if (existing) await this.prisma.messageReaction.delete({ where: { id: existing.id } });
+    else await this.prisma.messageReaction.create({ data: { messageId, userId, emoji } });
 
-    const allReactions = await this.prisma.messageReaction.findMany({
-      where: { messageId }
-    });
-
+    const allReactions = await this.prisma.messageReaction.findMany({ where: { messageId } });
     const eventData = { id: messageId, reactions: allReactions };
     this.rt.emitData(msg.senderId, 'chat:reaction_updated', eventData);
     this.rt.emitData(msg.receiverId, 'chat:reaction_updated', eventData);
-
     return { ok: true };
   }
 }

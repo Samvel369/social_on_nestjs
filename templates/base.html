@@ -295,11 +295,13 @@
     }
 
     function setBadge(num) {
-        if (num > 0) {
-            badge.style.display = 'inline-block';
-            badge.innerText = num;
-        } else {
-            badge.style.display = 'none';
+        if (badge) {
+            if (num > 0) {
+                badge.style.display = 'inline-block';
+                badge.innerText = num;
+            } else {
+                badge.style.display = 'none';
+            }
         }
     }
 
@@ -308,8 +310,10 @@
         div.className = 'toast';
         div.innerHTML = `<h5>${senderName}</h5><p>${text.substring(0, 30)}${text.length>30?'...':''}</p>`;
         div.onclick = () => window.location.href = '/api/chat';
-        toastContainer.appendChild(div);
-        setTimeout(() => { div.remove(); }, 10000);
+        if(toastContainer) {
+            toastContainer.appendChild(div);
+            setTimeout(() => { div.remove(); }, 10000);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -319,7 +323,12 @@
         
         if (socket) {
             socket.on('chat:new_message', (msg) => {
+                // 🔥 ВАЖНОЕ ИСПРАВЛЕНИЕ: Не показываем тост, если это мое сообщение
+                if (window.CURRENT_USER_ID === msg.senderId) return; 
+
+                // Если чат открыт с этим юзером - тост не нужен
                 if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return; 
+                
                 showToast(msg.senderName || 'Друг', msg.content);
                 updateBadgeCount(); 
             });

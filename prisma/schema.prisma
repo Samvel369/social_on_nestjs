@@ -161,6 +161,10 @@ model Message {
   
   // Реакции
   reactions MessageReaction[]
+
+  // 🔥 НОВЫЕ СВЯЗИ ДЛЯ ОТВЕТОВ (Self-relation Many-to-Many)
+  replyTo   Message[] @relation("ReplyRelation") // На какие сообщения отвечает это
+  repliedBy Message[] @relation("ReplyRelation") // Какие сообщения отвечают на это
 }
 
 model MessageReaction {

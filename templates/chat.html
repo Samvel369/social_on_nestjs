@@ -1,135 +1,76 @@
 {% extends 'base.html' %}
-
 {% block title %}Сообщения{% endblock %}
-
 {% block content %}
 <style>
-  /* Старые стили оставляем... */
-  .chat-container { display: flex; height: calc(100vh - 100px); background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+  /* ... старые стили ... */
+  .chat-container { display: flex; height: calc(100vh - 100px); background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; position: relative; }
   .chat-sidebar { width: 250px; background: #f7f7f7; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-  .chat-sidebar h4 { padding: 15px; margin: 0; background: #eee; border-bottom: 1px solid #ddd; }
   .contact-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
-  .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s; position: relative; }
+  .contact-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; position: relative; }
   .contact-item:hover { background: #e0e0e0; }
   .contact-item.active { background: #d0e0ff; }
   .contact-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
   .contact-badge { background: #28a745; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold; margin-left: auto; }
-  .typing-indicator { font-size: 11px; color: #007bff; font-style: italic; display: none; margin-top: 2px; }
-  .typing-dots::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
-  @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
-  .chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; }
-  .chat-header { padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; display: flex; align-items: center; gap: 10px; }
-  .messages-area { flex: 1; padding: 20px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 10px; }
-
-  .chat-input-area { padding: 15px; border-top: 1px solid #ddd; background: #f7f7f7; display: flex; gap: 10px; }
-  .chat-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
-  .chat-input-area button { padding: 10px 20px; border-radius: 20px; border: none; background: #28a745; color: white; cursor: pointer; }
-  .chat-input-area button:hover { background: #218838; }
-  .cancel-edit-btn { background: #dc3545 !important; display: none; }
-  .no-chat-selected { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
-
-  /* 🔥 ОБНОВЛЕННЫЕ СТИЛИ СООБЩЕНИЙ 🔥 */
-  .msg-container {
-    display: flex;
-    flex-direction: column;
-    max-width: 70%;
-    position: relative;
-    margin-bottom: 5px;
+  
+  /* 🔥 ИНДИКАТОР ПЕЧАТИ (Исправлено) 🔥 */
+  .typing-indicator { 
+      font-size: 11px; 
+      color: #007bff; 
+      font-style: italic; 
+      display: none !important; /* Принудительно скрываем по умолчанию */
+      margin-top: 2px; 
   }
+  
+  /* 🔥 ПРЕВЬЮ ПОСЛЕДНЕГО СООБЩЕНИЯ 🔥 */
+  .contact-info { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .contact-last-msg { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; margin-top: 2px; }
+
+  .chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; }
+  .chat-header { padding: 15px; border-bottom: 1px solid #ddd; background: #fcfcfc; display: flex; align-items: center; gap: 10px; }
+  .messages-area { flex: 1; padding: 20px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+
+  .msg-container { display: flex; flex-direction: column; max-width: 70%; position: relative; margin-bottom: 5px; transition: transform 0.2s; }
   .msg-container.mine { align-self: flex-end; align-items: flex-end; }
   .msg-container.theirs { align-self: flex-start; align-items: flex-start; }
-
-  .msg {
-    padding: 10px 15px;
-    border-radius: 12px;
-    font-size: 14px;
-    line-height: 1.4;
-    word-wrap: break-word;
-    position: relative;
-    /* Убрали cursor: context-menu, теперь управление через кнопку */
-  }
+  .msg-container.selected .msg { background: #cce5ff !important; border: 2px solid #007bff; transform: scale(1.02); }
+  
+  .msg { padding: 10px 15px; border-radius: 12px; font-size: 14px; line-height: 1.4; word-wrap: break-word; position: relative; min-width: 100px; }
   .msg.mine { background: #007bff; color: white; border-bottom-right-radius: 2px; }
   .msg.theirs { background: #e9ecef; color: black; border-bottom-left-radius: 2px; }
-
-  /* Кнопка "Три точки" (Menu Toggle) */
-  .msg-menu-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    color: inherit;
-    opacity: 0; /* Скрыта */
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 10px;
-    padding: 2px 5px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 4px;
-    transition: opacity 0.2s;
-  }
-  .msg:hover .msg-menu-btn { opacity: 0.7; }
-  .msg-menu-btn:hover { opacity: 1 !important; background: rgba(255,255,255,0.4); }
-
   .msg-time { font-size: 10px; opacity: 0.7; margin-top: 5px; text-align: right; display: block; }
   .msg-edited { font-size: 10px; font-style: italic; opacity: 0.7; margin-left: 5px; }
-
-  /* 🔥 СТИЛИ РЕАКЦИЙ 🔥 */
-  .reactions-row {
-    display: flex;
-    gap: 4px;
-    margin-top: -5px; /* Чуть наезжаем на сообщение или прижимаемся */
-    z-index: 10;
-    padding: 0 5px;
-  }
-  .reaction-pill {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 2px 6px;
-    font-size: 11px;
-    cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    gap: 3px;
-  }
-  .reaction-pill.my-reaction {
-    background: #e6f0ff;
-    border-color: #007bff;
-    color: #007bff;
-  }
-
-  /* 🔥 КОНТЕКСТНОЕ МЕНЮ 🔥 */
-  #context-menu {
-    position: fixed; /* Fixed чтобы не зависеть от скролла */
-    background: white;
-    border: 1px solid #ccc;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    border-radius: 8px;
-    display: none;
-    z-index: 9999;
-    width: 180px;
-    overflow: hidden;
-  }
-  #context-menu ul { list-style: none; padding: 0; margin: 0; }
-  #context-menu li { padding: 10px 15px; cursor: pointer; font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; }
-  #context-menu li:hover { background: #f5f5f5; }
-  #context-menu li.delete-option { color: #dc3545; }
+  .msg-menu-btn { position: absolute; top: 5px; right: 5px; color: inherit; opacity: 0; cursor: pointer; padding: 2px 5px; background: rgba(255,255,255,0.2); border-radius: 4px; }
+  .msg:hover .msg-menu-btn { opacity: 0.7; }
   
-  /* Секция реакций в меню */
-  .menu-reactions {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-around;
-    background: #fafafa;
-  }
-  .menu-reaction-btn {
-    font-size: 20px;
-    cursor: pointer;
-    transition: transform 0.1s;
-  }
-  .menu-reaction-btn:hover { transform: scale(1.3); }
+  .reactions-row { display: flex; gap: 4px; margin-top: -5px; z-index: 10; padding: 0 5px; }
+  .reaction-pill { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 2px 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 3px; }
+  .reaction-pill.my-reaction { background: #e6f0ff; border-color: #007bff; color: #007bff; }
 
+  .reply-quote-block { font-size: 12px; margin-bottom: 5px; padding: 5px 8px; border-left: 3px solid rgba(0,0,0,0.2); background: rgba(0,0,0,0.05); border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; }
+  .reply-quote-sender { font-weight: bold; opacity: 0.8; margin-bottom: 2px; }
+  .reply-quote-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; opacity: 0.8; }
+  
+  .chat-input-wrapper { border-top: 1px solid #ddd; background: #f7f7f7; display: flex; flex-direction: column; }
+  .chat-input-area { padding: 15px; display: flex; gap: 10px; align-items: center; }
+  .chat-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+  .chat-input-area button { padding: 10px 20px; border-radius: 20px; border: none; background: #28a745; color: white; cursor: pointer; }
+  .cancel-edit-btn { background: #dc3545 !important; display: none; padding: 5px 10px !important; font-size: 12px; }
+
+  #reply-preview-bar { display: none; padding: 8px 15px; background: #e9ecef; border-bottom: 1px solid #ccc; font-size: 13px; color: #555; justify-content: space-between; align-items: center; }
+  #reply-preview-content { font-weight: bold; color: #007bff; }
+  #close-reply-btn { cursor: pointer; color: #999; font-weight: bold; font-size: 16px; }
+
+  #selection-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none; gap: 15px; align-items: center; z-index: 1000; }
+  .sel-action-btn { background: none; border: none; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; font-size: 12px; gap: 4px; }
+  .sel-action-btn:hover { color: #aaa; }
+  .sel-action-btn i { font-size: 18px; }
+  
+  #context-menu { position: fixed; background: white; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 8px; display: none; z-index: 9999; width: 180px; }
+  #context-menu ul { list-style: none; padding: 0; margin: 0; }
+  #context-menu li { padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  #context-menu li:hover { background: #f5f5f5; }
+  .menu-reactions { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-around; }
+  .menu-reaction-btn { font-size: 20px; cursor: pointer; }
 </style>
 
 <div class="chat-container">
@@ -137,41 +78,61 @@
     <h4>Контакты</h4>
     <ul class="contact-list" id="contact-list">
       {% for friend in contacts %}
-      <li class="contact-item" 
-          data-id="{{ friend.id }}" 
-          data-username="{{ friend.username }}" 
+      <li class="contact-item" id="contact-{{ friend.id }}" data-id="{{ friend.id }}" data-username="{{ friend.username }}" 
           onclick="selectChat({{ friend.id }}, '{{ friend.username }}', '{{ friend.avatar_url }}')">
-        <img src="{{ friend.avatar_url }}" class="contact-avatar" alt="ava">
-        <div style="display:flex; flex-direction:column; flex:1;">
-            <span style="font-weight:bold;">{{ friend.username }}</span>
-            <small class="typing-indicator" id="typing-list-{{ friend.id }}">печатает<span class="typing-dots"></span></small>
+        <img src="{{ friend.avatar_url }}" class="contact-avatar">
+        
+        <div class="contact-info">
+            <div style="display:flex; justify-content:space-between; width:100%;">
+                <span style="font-weight:bold;">{{ friend.username }}</span>
+                <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">{{ friend.unreadCount }}</span>
+            </div>
+            
+            <span class="contact-last-msg" id="last-msg-{{ friend.id }}">
+                {{ friend.lastMessage or 'Нет сообщений' }}
+            </span>
+
+            <small class="typing-indicator" id="typing-list-{{ friend.id }}" style="display:none;">печатает...</small>
         </div>
-        <span id="badge-{{ friend.id }}" class="contact-badge" style="display: {{ 'inline-block' if friend.unreadCount > 0 else 'none' }};">{{ friend.unreadCount }}</span>
       </li>
       {% else %}
-      <li style="padding:15px; color:#999;">У вас пока нет друзей :(</li>
+      <li style="padding:15px; color:#999;">Нет друзей</li>
       {% endfor %}
     </ul>
   </div>
 
   <div class="chat-main">
     <div class="chat-header" id="chat-header" style="display:none;">
-      <img src="" id="header-avatar" class="contact-avatar" alt="">
+      <img src="" id="header-avatar" class="contact-avatar">
       <div style="display:flex; flex-direction:column;">
-          <span id="header-username" style="font-weight:bold;">Имя</span>
-          <small class="typing-indicator" id="typing-header" style="margin-top:0;">печатает<span class="typing-dots"></span></small>
+          <span id="header-username" style="font-weight:bold;"></span>
+          <small class="typing-indicator" id="typing-header" style="margin-top:0; display:none;">печатает...</small>
       </div>
     </div>
 
     <div class="messages-area" id="messages-area">
-      <div class="no-chat-selected">Выберите друга для начала общения</div>
+      <div class="no-chat-selected">Выберите друга</div>
     </div>
 
-    <form class="chat-input-area" id="chat-form" style="display:none;">
-      <input type="text" id="msg-input" placeholder="Напишите сообщение..." autocomplete="off">
-      <button type="button" id="cancel-edit-btn" class="cancel-edit-btn">X</button>
-      <button type="submit" id="send-btn">Send</button>
-    </form>
+    <div id="selection-bar">
+        <span id="sel-count">1 выбрано</span>
+        <div style="width: 1px; height: 20px; background: #555;"></div>
+        <button class="sel-action-btn" id="btn-reply-multi"><i class="fa-solid fa-reply"></i> Ответить</button>
+        <button class="sel-action-btn" id="btn-delete-multi" style="color: #ff6b6b;"><i class="fa-solid fa-trash"></i> Удалить</button>
+        <button class="sel-action-btn" id="btn-cancel-sel"><i class="fa-solid fa-xmark"></i> Отмена</button>
+    </div>
+
+    <div class="chat-input-wrapper" id="chat-form-wrapper" style="display:none;">
+      <div id="reply-preview-bar">
+         <span>Ответ на <span id="reply-preview-content">...</span></span>
+         <span id="close-reply-btn">✕</span>
+      </div>
+      <form class="chat-input-area" id="chat-form">
+        <input type="text" id="msg-input" placeholder="Напишите сообщение..." autocomplete="off">
+        <button type="button" id="cancel-edit-btn" class="cancel-edit-btn">X</button>
+        <button type="submit" id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -180,12 +141,11 @@
     <span class="menu-reaction-btn" onclick="sendReaction('❤️')">❤️</span>
     <span class="menu-reaction-btn" onclick="sendReaction('😂')">😂</span>
     <span class="menu-reaction-btn" onclick="sendReaction('😮')">😮</span>
-    <span class="menu-reaction-btn" onclick="sendReaction('😢')">😢</span>
     <span class="menu-reaction-btn" onclick="sendReaction('👍')">👍</span>
   </div>
-  
   <ul>
-    <li id="ctx-reply">↩️ Ответить (Скоро)</li>
+    <li id="ctx-reply">↩️ Ответить</li>
+    <li id="ctx-select">✅ Выбрать</li>
     <li id="ctx-edit">✏️ Редактировать</li>
     <li id="ctx-delete" class="delete-option">🗑️ Удалить</li>
   </ul>
