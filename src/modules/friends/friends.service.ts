@@ -10,8 +10,17 @@ export class FriendsService {
     private readonly rt: RealtimeGateway,
   ) {}
 
+  // 🔥 НОВЫЙ МЕТОД: Считаем входящие заявки для бейджа
+  async getIncomingCount(userId: number): Promise<number> {
+    return this.prisma.friendRequest.count({
+      where: {
+        receiverId: userId,
+        status: FriendRequestStatus.PENDING,
+      },
+    });
+  }
+
   // ---------- helpers ----------
-  // 🔥 Обновленный маппер
   private mapUser(u: { id: number; username: string; firstName?: string | null; lastName?: string | null; avatarUrl: string | null }) {
     let displayName = u.username;
     if (u.firstName) {
@@ -22,23 +31,27 @@ export class FriendsService {
 
   private notifyOne(userId: number, event: string) { try { this.rt.emitToUser(userId, event); } catch {} }
   private notifyBoth(a: number, b: number, event: string) { try { this.rt.emitToUsers([a, b], event); } catch {} }
+
   private async assertUserExists(userId: number) {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!u) throw new NotFoundException('user not found');
   }
+
   private isUniqueError(e: any) { return e && typeof e === 'object' && e.code === 'P2002'; }
+
   private async cleanupSubscriptionsBetween(a: number, b: number) {
     await this.prisma.subscriber.deleteMany({ where: { OR: [
       { subscriberId: a, ownerId: b }, { subscriberId: b, ownerId: a },
     ]}});
   }
+
   private async cleanupPotentialBetween(a: number, b: number) {
     await this.prisma.potentialFriendView.deleteMany({ where: { OR: [
       { viewerId: a, userId: b }, { viewerId: b, userId: a },
     ]}});
   }
 
-  // ---------- reads (ВЕЗДЕ ДОБАВЛЯЕМ firstName, lastName) ----------
+  // ---------- reads ----------
   async getPossible(viewerId: number, keepMinutes = 10) {
     const since = new Date(Date.now() - keepMinutes * 60_000);
     const rows = await this.prisma.potentialFriendView.findMany({
@@ -101,7 +114,7 @@ export class FriendsService {
     return rows.map(r => this.mapUser(r.owner));
   }
 
-  // ---------- actions (без изменений) ----------
+  // ---------- actions ----------
   async sendFriendRequest(userId: number, toUserId: number) {
     if (userId === toUserId) throw new BadRequestException('self request');
     await this.assertUserExists(toUserId);

@@ -3,7 +3,7 @@ import {
   UseGuards, Render,
 } from '@nestjs/common';
 import { FriendsService } from './friends.service';
-import { PrismaService } from '../../prisma/prisma.service'; // 🔥 Добавил импорт
+import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -21,8 +21,15 @@ function getDisplayName(user: any) {
 export class FriendsController {
   constructor(
     private readonly service: FriendsService,
-    private readonly prisma: PrismaService // 🔥 Инжектим Prisma
+    private readonly prisma: PrismaService
   ) {}
+
+  // 🔥 НОВЫЙ МЕТОД: API для получения количества заявок
+  @Get('incoming-count')
+  async getIncomingCount(@CurrentUser() u: AuthUser) {
+    const count = await this.service.getIncomingCount(u.userId);
+    return { count };
+  }
 
   // ---------- FULL PAGE ----------
   @Get(['', 'view'])
@@ -30,7 +37,6 @@ export class FriendsController {
   async page(@CurrentUser() u: AuthUser, @Query('keep') keep?: string) {
     const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
 
-    // 🔥 Достаем текущего юзера для меню
     const me = await this.prisma.user.findUnique({ where: { id: u.userId } });
     const current_user = me ? {
         id: me.id,
@@ -40,7 +46,7 @@ export class FriendsController {
     } : null;
 
     return {
-      current_user, // 🔥 Передаем в шаблон
+      current_user,
       keep_minutes,
       possible_friends: await this.service.getPossible(u.userId, keep_minutes),
       incoming_requests: await this.service.getIncoming(u.userId),
@@ -50,11 +56,6 @@ export class FriendsController {
       subscriptions: await this.service.getSubscriptions(u.userId),
     };
   }
-
-  // ... (Остальные методы partials и actions остаются без изменений)
-  // Я их скрыл для краткости, так как мы их не меняли, кроме импорта сверху.
-  // Если у тебя нет их копии, я могу скинуть полный файл, но там много строк.
-  // Главное - замени метод page и конструктор.
   
   // ---------- PARTIALS ----------
   @Get(['partials/possible', 'partials/possible_friends'])

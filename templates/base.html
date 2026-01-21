@@ -9,36 +9,31 @@
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   
   <style>
-    /* 🔥 НОВЫЕ СТИЛИ ДЛЯ СВОРАЧИВАЕМОГО МЕНЮ 🔥 */
-
-    /* Основной контейнер должен уметь менять структуру */
+    /* 🔥 СТИЛИ SIDEBAR 🔥 */
     .container {
       display: flex;
       min-height: 100vh;
       transition: all 0.3s ease;
     }
 
-    /* --- SIDEBAR (ЛЕВАЯ КОЛОНКА) --- */
     .sidebar {
-      width: 250px; /* Полная ширина */
+      width: 250px;
       background: #f0f2f5;
       padding: 20px 10px;
       display: flex;
       flex-direction: column;
       border-right: 1px solid #ddd;
-      transition: width 0.3s ease; /* Плавная анимация ширины */
-      overflow: hidden; /* Скрываем текст при сворачивании */
+      transition: width 0.3s ease;
+      overflow: hidden;
       position: relative;
-      flex-shrink: 0; /* Чтобы не сжимался сам по себе */
+      flex-shrink: 0;
     }
 
-    /* Состояние: СВЕРНУТО */
     .sidebar.collapsed {
-      width: 70px; /* Узкая ширина */
+      width: 70px;
       padding: 20px 5px;
     }
 
-    /* Кнопка Гамбургер */
     .menu-toggle-btn {
       background: none;
       border: none;
@@ -50,11 +45,10 @@
       align-self: flex-start;
     }
     .sidebar.collapsed .menu-toggle-btn {
-      align-self: center; /* Центрируем кнопку, когда свернуто */
+      align-self: center;
       padding-left: 0;
     }
 
-    /* Аватарка пользователя */
     .user-info {
       display: flex;
       align-items: center;
@@ -71,12 +65,10 @@
       transition: all 0.3s;
       border: 2px solid #ddd;
     }
-    /* Когда свернуто: прячем имя, уменьшаем аватар */
     .sidebar.collapsed .user-name { display: none; }
     .sidebar.collapsed .user-info { justify-content: center; padding: 0; }
     .sidebar.collapsed .user-avatar { width: 35px; height: 35px; border-width: 1px; }
 
-    /* Ссылки меню */
     .sidebar ul { list-style: none; padding: 0; margin: 0; }
     .sidebar li { margin-bottom: 5px; }
     
@@ -89,36 +81,34 @@
       border-radius: 8px;
       transition: background 0.2s;
       font-size: 16px;
-      white-space: nowrap; /* Чтобы текст не переносился */
+      white-space: nowrap;
+      position: relative; /* Важно для позиционирования бейджа */
     }
     .sidebar a:hover { background: #e4e6eb; }
 
-    /* Иконки в меню */
     .sidebar a i {
-      width: 25px; /* Фиксированная ширина для иконки */
+      width: 25px;
       text-align: center;
       font-size: 18px;
       margin-right: 15px;
-      color: #007bff; /* Цвет иконок */
+      color: #007bff;
       transition: margin 0.3s;
     }
 
-    /* Когда свернуто: убираем отступ и прячем текст */
     .sidebar.collapsed a span { display: none; opacity: 0; }
     .sidebar.collapsed a i { margin-right: 0; font-size: 20px; }
     .sidebar.collapsed a { justify-content: center; padding: 15px 0; }
 
-    /* --- БЕЙДЖИ И УВЕДОМЛЕНИЯ --- */
+    /* --- БЕЙДЖИ --- */
     .menu-badge {
       background-color: #ff4444;
       color: white;
       border-radius: 50%;
       padding: 2px 6px;
       font-size: 12px;
-      margin-left: auto; /* Отодвигает вправо */
+      margin-left: auto;
       display: none;
     }
-    /* Когда свернуто: бейдж висит поверх иконки */
     .sidebar.collapsed .menu-badge {
       position: absolute;
       top: 5px;
@@ -127,15 +117,11 @@
       padding: 2px 5px;
       margin-left: 0;
     }
-    /* Нужно добавить position: relative для ссылки, чтобы бейдж позиционировался */
-    .sidebar li a { position: relative; }
 
-
-    /* --- ОСТАЛЬНОЕ --- */
     .content { flex: 1; padding: 20px; }
     .sidebar-right { width: 200px; padding: 20px; background: #f9f9f9; border-left: 1px solid #ddd; }
 
-    /* Тосты (Всплывашки) */
+    /* Тосты */
     .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
     .toast { background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); min-width: 200px; animation: slideIn 0.3s ease-out; opacity: 0.95; cursor: pointer; }
     .toast h5 { margin: 0 0 5px 0; color: #4facfe; font-size: 14px; }
@@ -181,6 +167,10 @@
             <a href="/api/friends/view" title="Друзья">
                 <i class="fa-solid fa-user-group"></i>
                 <span>Друзья</span>
+                <!-- 🔥 БЕЙДЖ ДЛЯ ДРУЗЕЙ 🔥 -->
+                <span id="friends-badge" class="menu-badge" style="display: {{ 'inline-block' if friends_requests_count > 0 else 'none' }};">
+                    {{ friends_requests_count }}
+                </span>
             </a>
         </li>
         <li>
@@ -209,24 +199,9 @@
             </a>
         </li>
         {% else %}
-        <li>
-            <a href="/">
-                <i class="fa-solid fa-house"></i>
-                <span>Главная</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/auth/login">
-                <i class="fa-solid fa-right-to-bracket"></i>
-                <span>Вход</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/auth/register">
-                <i class="fa-solid fa-user-plus"></i>
-                <span>Регистрация</span>
-            </a>
-        </li>
+        <li><a href="/"><i class="fa-solid fa-house"></i> <span>Главная</span></a></li>
+        <li><a href="/api/auth/login"><i class="fa-solid fa-right-to-bracket"></i> <span>Вход</span></a></li>
+        <li><a href="/api/auth/register"><i class="fa-solid fa-user-plus"></i> <span>Регистрация</span></a></li>
         {% endif %}
     </ul>
   </div>
@@ -263,17 +238,13 @@
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('menu-toggle');
 
-    // 1. Проверяем сохраненное состояние при загрузке
-    const savedState = localStorage.getItem('sidebar-collapsed');
-    if (savedState === 'true') {
+    if (localStorage.getItem('sidebar-collapsed') === 'true') {
         sidebar.classList.add('collapsed');
     }
 
-    // 2. Обработка клика
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
-            // Сохраняем состояние
             localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
         });
     }
@@ -281,28 +252,43 @@
 
 <script>
 (function(){
-    const badge = document.getElementById('global-msg-badge');
+    const msgBadge = document.getElementById('global-msg-badge');
+    const friendsBadge = document.getElementById('friends-badge');
     const toastContainer = document.getElementById('toast-container');
     let socket = window.socket;
 
-    async function updateBadgeCount() {
+    // Функция обновления счетчика сообщений
+    async function updateMsgBadgeCount() {
         if(!window.CURRENT_USER_ID) return;
         try {
             const res = await fetch('/api/chat/unread-count');
             const data = await res.json();
-            setBadge(data.count);
+            if (msgBadge) {
+                if (data.count > 0) {
+                    msgBadge.style.display = 'inline-block';
+                    msgBadge.innerText = data.count;
+                } else {
+                    msgBadge.style.display = 'none';
+                }
+            }
         } catch(e) {}
     }
 
-    function setBadge(num) {
-        if (badge) {
-            if (num > 0) {
-                badge.style.display = 'inline-block';
-                badge.innerText = num;
-            } else {
-                badge.style.display = 'none';
+    // 🔥 Функция обновления счетчика заявок в друзья 🔥
+    async function updateFriendsBadgeCount() {
+        if(!window.CURRENT_USER_ID) return;
+        try {
+            const res = await fetch('/api/friends/incoming-count');
+            const data = await res.json();
+            if (friendsBadge) {
+                if (data.count > 0) {
+                    friendsBadge.style.display = 'inline-block';
+                    friendsBadge.innerText = data.count;
+                } else {
+                    friendsBadge.style.display = 'none';
+                }
             }
-        }
+        } catch(e) {}
     }
 
     function showToast(senderName, text) {
@@ -317,25 +303,29 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        updateBadgeCount();
+        updateMsgBadgeCount();
+        updateFriendsBadgeCount();
         
         if (!socket && window.socket) socket = window.socket;
         
         if (socket) {
+            // Новое сообщение
             socket.on('chat:new_message', (msg) => {
-                // 🔥 ВАЖНОЕ ИСПРАВЛЕНИЕ: Не показываем тост, если это мое сообщение
                 if (window.CURRENT_USER_ID === msg.senderId) return; 
-
-                // Если чат открыт с этим юзером - тост не нужен
                 if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return; 
-                
                 showToast(msg.senderName || 'Друг', msg.content);
-                updateBadgeCount(); 
+                updateMsgBadgeCount(); 
+            });
+
+            // 🔥 Обновление списка друзей (заявки) 🔥
+            socket.on('friends:lists:refresh', () => {
+                updateFriendsBadgeCount();
             });
         }
     });
 
-    window.updateGlobalBadge = updateBadgeCount;
+    window.updateGlobalBadge = updateMsgBadgeCount;
+    window.updateFriendsBadge = updateFriendsBadgeCount;
 })();
 </script>
 
