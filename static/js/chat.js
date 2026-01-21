@@ -79,8 +79,10 @@
         
         socket.on('chat:typing', ({ senderId }) => {
             showTyping(senderId);
+            // Сбрасываем таймер скрытия
             if (typingTimeouts[senderId]) clearTimeout(typingTimeouts[senderId]);
-            typingTimeouts[senderId] = setTimeout(() => hideTyping(senderId), 10000);
+            // Ставим новый на 3 секунды
+            typingTimeouts[senderId] = setTimeout(() => hideTyping(senderId), 3000);
         });
     }
 
@@ -113,22 +115,31 @@
         }
     }
 
+    // --- ЛОГИКА ОТОБРАЖЕНИЯ СТАТУСА ПЕЧАТИ ---
     function hideTyping(userId) {
+        // 1. В списке контактов
         const listIndicator = document.getElementById(`typing-list-${userId}`);
-        if (listIndicator) listIndicator.style.setProperty('display', 'none', 'important');
+        if (listIndicator) listIndicator.style.display = 'none';
+        
+        // 2. В заголовке (если открыт этот чат)
         if (currentReceiverId === userId) {
             const headerIndicator = document.getElementById('typing-header');
             if (headerIndicator) headerIndicator.style.display = 'none';
         }
     }
+    
     function showTyping(userId) {
+        // 1. В списке контактов
         const listIndicator = document.getElementById(`typing-list-${userId}`);
         if (listIndicator) listIndicator.style.display = 'block'; 
+        
+        // 2. В заголовке (если открыт этот чат)
         if (currentReceiverId === userId) {
             const headerIndicator = document.getElementById('typing-header');
             if (headerIndicator) headerIndicator.style.display = 'block';
         }
     }
+    // ------------------------------------------
 
     function toggleSelectionMode(msgId) {
         if (!selectionMode) { selectionMode = true; selectionBar.style.display = 'flex'; }
@@ -194,11 +205,9 @@
         else await submitNewMessage(text);
     });
 
-    // 🔥 ИСПРАВЛЕНО: Кнопка отмены редактирования теперь точно работает
-    // Мы вешаем обработчик здесь, чтобы он был доступен всегда
     if (cancelEditBtn) {
         cancelEditBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // На всякий случай
+            e.preventDefault();
             exitEditMode();
         });
     }
@@ -239,7 +248,7 @@
         input.value = currentText;
         input.focus();
         sendBtn.innerHTML = '<i class="fa-solid fa-check"></i>'; 
-        cancelEditBtn.style.display = 'block'; // Показываем крестик
+        cancelEditBtn.style.display = 'block';
         document.getElementById('chat-form-wrapper').style.border = '2px solid #007bff';
         ctxMenu.style.display = 'none';
     }
@@ -248,7 +257,7 @@
         editingMessageId = null;
         input.value = '';
         sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-        cancelEditBtn.style.display = 'none'; // Скрываем крестик
+        cancelEditBtn.style.display = 'none';
         document.getElementById('chat-form-wrapper').style.border = 'none';
         document.getElementById('chat-form-wrapper').style.borderTop = '1px solid #ddd';
     }
@@ -287,8 +296,6 @@
         }
         if (!e.target.closest('#context-menu')) ctxMenu.style.display = 'none';
     });
-
-    // ... appendMessage, etc. (оставляем старое)
     
     window.selectChat = async function(friendId, username, avatarUrl) {
         exitSelectionMode();
@@ -386,10 +393,14 @@
         }
     }
     
+    // 🔥 ОТПРАВКА СОБЫТИЯ ПЕЧАТИ 🔥
     const inputEl = document.getElementById('msg-input');
     if(inputEl) inputEl.addEventListener('input', () => {
+        // Проверяем, что сокет есть и чат выбран
         if (!socket || !currentReceiverId) return;
+        
         const now = Date.now();
+        // Троттлинг: шлем не чаще чем раз в 2 секунды
         if (now - lastTypingSent > 2000) {
             socket.emit('chat:typing', { receiverId: currentReceiverId });
             lastTypingSent = now;
