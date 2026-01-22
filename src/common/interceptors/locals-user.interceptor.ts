@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor, Logger } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
@@ -8,6 +8,8 @@ import { WorldService } from '../../modules/world/world.service'; // 🔥 Доб
 
 @Injectable()
 export class LocalsUserInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(LocalsUserInterceptor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly rt: RealtimeGateway,
@@ -45,7 +47,7 @@ export class LocalsUserInterceptor implements NestInterceptor {
         try {
             res.locals.world_active_actions_count = await this.worldService.getUnseenActiveActionsCount(u.userId ?? u.id);
         } catch (e) {
-            console.error("Error in LocalsUserInterceptor fetching unseen world actions:", e);
+            this.logger.error("Error fetching unseen world actions", e);
             res.locals.world_active_actions_count = 0;
         }
       }

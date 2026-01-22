@@ -6,15 +6,9 @@ import { FriendsService } from './friends.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { getDisplayName } from '../../common/utils/user.utils';
 
 type AuthUser = { userId: number; username: string };
-
-function getDisplayName(user: any) {
-  if (user.firstName) {
-    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
-  }
-  return user.username;
-}
 
 @UseGuards(JwtAuthGuard)
 @Controller('friends')

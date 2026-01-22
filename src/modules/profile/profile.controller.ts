@@ -21,20 +21,7 @@ import { Response } from 'express';
 
 const UPLOAD_DIR = path.resolve(process.cwd(), 'static/uploads');
 
-// 🔥 ОБНОВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ 🔥
-function getDisplayName(user: any) {
-  // Если есть хотя бы Имя
-  if (user.firstName) {
-    // Если есть еще и Фамилия - склеиваем
-    if (user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    // Иначе возвращаем просто Имя
-    return user.firstName;
-  }
-  // Если имени нет вообще - возвращаем логин
-  return user.username;
-}
+import { getDisplayName } from '../../common/utils/user.utils';
 
 @Controller('profile')
 export class ProfileController {

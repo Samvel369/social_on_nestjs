@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 import { FriendRequestStatus } from '@prisma/client';
+import { getDisplayName } from '../../common/utils/user.utils';
 
 @Injectable()
 export class FriendsService {
@@ -22,11 +23,7 @@ export class FriendsService {
 
   // ---------- helpers ----------
   private mapUser(u: { id: number; username: string; firstName?: string | null; lastName?: string | null; avatarUrl: string | null }) {
-    let displayName = u.username;
-    if (u.firstName) {
-        displayName = u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName;
-    }
-    return { id: u.id, username: displayName, avatar_url: u.avatarUrl ?? '' };
+    return { id: u.id, username: getDisplayName(u), avatar_url: u.avatarUrl ?? '' };
   }
 
   private notifyOne(userId: number, event: string) { try { this.rt.emitToUser(userId, event); } catch {} }

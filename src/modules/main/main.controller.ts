@@ -4,13 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
-
-function getDisplayName(user: any) {
-  if (user.firstName) {
-    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
-  }
-  return user.username;
-}
+import { getDisplayName } from '../../common/utils/user.utils';
 
 @Controller()
 export class MainController {

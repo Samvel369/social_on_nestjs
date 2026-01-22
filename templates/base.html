@@ -349,26 +349,41 @@
         updateFriendsBadgeCount();
         updateWorldBadgeCount(); // Вызываем при загрузке страницы
         
-        if (!socket && window.socket) socket = window.socket;
-        
-        if (socket) {
-            socket.on('chat:new_message', (msg) => {
+        // Получаем socket из window.socket (который создается в socket.js)
+        // Используем задержку, чтобы socket.js успел инициализироваться
+        const initSocketListeners = () => {
+            const currentSocket = window.socket || socket;
+            if (!currentSocket) {
+                // Если socket еще не готов, пробуем через небольшую задержку
+                setTimeout(initSocketListeners, 100);
+                return;
+            }
+            
+            // Удаляем старые обработчики, если они есть
+            currentSocket.off('chat:new_message');
+            currentSocket.off('friends:lists:refresh');
+            currentSocket.off('world:actions:refresh');
+            
+            currentSocket.on('chat:new_message', (msg) => {
                 if (window.CURRENT_USER_ID === msg.senderId) return; 
                 if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return; 
                 showToast(msg.senderName || 'Друг', msg.content);
                 updateMsgBadgeCount(); 
             });
 
-            socket.on('friends:lists:refresh', () => {
+            currentSocket.on('friends:lists:refresh', () => {
                 updateFriendsBadgeCount();
             });
 
             // 🔥 Слушаем обновление действий мира 🔥
             // Теперь эта функция сама решает, показывать или скрывать бейдж в зависимости от страницы
-            socket.on('world:actions:refresh', () => {
+            currentSocket.on('world:actions:refresh', () => {
                 updateWorldBadgeCount(); 
             });
-        }
+        };
+        
+        // Пробуем инициализировать сразу, если socket уже готов
+        initSocketListeners();
 
         // 🔥 Периодическое обновление бейджа "Наш мир" для отслеживания истечения времени действий
         // Обновляем каждые 10 секунд, но только если пользователь не на странице "Наш мир"

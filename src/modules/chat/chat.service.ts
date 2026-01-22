@@ -1,13 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
-
-function getDisplayName(user: any) {
-  if (user.firstName) {
-    return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
-  }
-  return user.username;
-}
+import { getDisplayName } from '../../common/utils/user.utils';
 
 @Injectable()
 export class ChatService {
@@ -77,45 +71,93 @@ export class ChatService {
   }
 
   async getContacts(userId: number) {
+    // Получаем всех друзей одним запросом
     const requests = await this.prisma.friendRequest.findMany({
       where: { status: 'ACCEPTED', OR: [{ senderId: userId }, { receiverId: userId }] },
       include: { sender: true, receiver: true },
     });
 
-    const contacts = [];
+    // Извлекаем ID всех друзей
+    const friendIds = requests.map(r => r.senderId === userId ? r.receiver.id : r.sender.id);
+    
+    if (friendIds.length === 0) {
+      return [];
+    }
 
-    for (const r of requests) {
-      const friend = r.senderId === userId ? r.receiver : r.sender;
+    // 🔥 ОПТИМИЗАЦИЯ: Получаем все непрочитанные сообщения одним запросом через groupBy
+    const unreadMessages = await this.prisma.message.groupBy({
+      by: ['senderId'],
+      where: {
+        receiverId: userId,
+        senderId: { in: friendIds },
+        isRead: false,
+        deletedForReceiver: false,
+      },
+      _count: { id: true },
+    });
+
+    // Создаем Map для быстрого доступа к количеству непрочитанных
+    const unreadCountMap = new Map<number, number>();
+    unreadMessages.forEach(item => {
+      unreadCountMap.set(item.senderId, item._count.id);
+    });
+
+    // 🔥 ОПТИМИЗАЦИЯ: Получаем все последние сообщения одним запросом
+    // Получаем все сообщения между пользователем и всеми друзьями, затем обрабатываем в памяти
+    const allMessages = await this.prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: { in: friendIds } },
+          { receiverId: userId, senderId: { in: friendIds }, deletedForReceiver: false },
+        ],
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+        content: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Создаем Map для последних сообщений (берем самое свежее для каждой пары)
+    const lastMessageMap = new Map<number, { content: string; createdAt: Date }>();
+    const processedPairs = new Set<string>();
+
+    for (const msg of allMessages) {
+      const friendId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      const pairKey = `${Math.min(userId, friendId)}-${Math.max(userId, friendId)}`;
       
-      const unreadCount = await this.prisma.message.count({
-        where: { senderId: friend.id, receiverId: userId, isRead: false, deletedForReceiver: false }
-      });
+      if (!processedPairs.has(pairKey)) {
+        processedPairs.add(pairKey);
+        lastMessageMap.set(friendId, {
+          content: msg.content,
+          createdAt: msg.createdAt,
+        });
+      }
+    }
 
-      const lastMsg = await this.prisma.message.findFirst({
-        where: {
-          OR: [
-            { senderId: userId, receiverId: friend.id },
-            { senderId: friend.id, receiverId: userId, deletedForReceiver: false }
-          ]
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { content: true, createdAt: true }
-      });
+    // Формируем результат
+    const contacts = requests.map(r => {
+      const friend = r.senderId === userId ? r.receiver : r.sender;
+      const unreadCount = unreadCountMap.get(friend.id) || 0;
+      const lastMsg = lastMessageMap.get(friend.id);
 
-      contacts.push({
+      return {
         id: friend.id,
         username: getDisplayName(friend),
         avatar_url: friend.avatarUrl || '/static/default-avatar.png',
         unreadCount,
-        lastMessage: lastMsg ? lastMsg.content : null, 
-        lastMessageTime: lastMsg ? lastMsg.createdAt : null
-      });
-    }
+        lastMessage: lastMsg ? lastMsg.content : null,
+        lastMessageTime: lastMsg ? lastMsg.createdAt : null,
+      };
+    });
 
+    // Сортируем по времени последнего сообщения
     return contacts.sort((a, b) => {
-        const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-        const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-        return timeB - timeA;
+      const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+      const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+      return timeB - timeA;
     });
   }
 

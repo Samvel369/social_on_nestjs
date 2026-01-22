@@ -10,8 +10,9 @@ export class WorldService {
     private rt: RealtimeGateway,
   ) {}
 
-  // 🔥 НОВЫЙ МЕТОД: Подсчет НЕПРОСМОТРЕННЫХ активных действий
+  // 🔥 МЕТОД: Подсчет НЕПРОСМОТРЕННЫХ активных действий
   async getUnseenActiveActionsCount(userId: number): Promise<number> {
+    // Оптимизация: получаем lastViewedWorldAt и сразу считаем в одном запросе через подзапрос
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { lastViewedWorldAt: true },
