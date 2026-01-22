@@ -72,6 +72,15 @@
         setTimeout(() => totalEl.style.color = '', 500);
       }
     });
+
+    // 🔥 НОВОЕ: Слушаем обновление действий мира (для бейджа "Наш мир")
+    socket.off('world:actions:refresh');
+    socket.on('world:actions:refresh', () => {
+      // Вызываем функцию обновления бейджа, если она определена в base.html
+      if (typeof window.updateWorldBadge === 'function') {
+        window.updateWorldBadge();
+      }
+    });
   }
   document.addEventListener('DOMContentLoaded', initSocket);
 })();

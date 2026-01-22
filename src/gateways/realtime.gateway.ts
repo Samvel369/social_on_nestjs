@@ -77,7 +77,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     client.emit('stats:online', { online: this.getOnlineCount() });
   }
 
-  // === СТАРЫЕ МЕТОДЫ (Друзья) ===
+  // === ОБЩИЕ МЕТОДЫ УВЕДОМЛЕНИЙ ===
   emitToUser(userId: number, event: string): void {
     try { this.server.to(`user_${userId}`).emit(event); } catch {}
   }
@@ -87,6 +87,11 @@ export class RealtimeGateway implements OnGatewayConnection {
       const rooms = userIds.filter(Boolean).map((id) => `user_${id}`);
       if (rooms.length) this.server.to(rooms).emit(event);
     } catch {}
+  }
+  
+  // 🔥 МЕТОД: Отправить событие всем подключенным клиентам
+  emitToAll(event: string, payload?: any): void {
+    try { this.server.emit(event, payload); } catch {}
   }
 
   emitToLegacyUserRoom(userId: number, event: string, payload?: any): void {
@@ -100,9 +105,6 @@ export class RealtimeGateway implements OnGatewayConnection {
     } catch {}
   }
 
-  // 🔥 НОВЫЙ МЕТОД: Индикатор печати 🔥
-  // Клиент присылает { receiverId: 123 }
-  // Мы пересылаем этому 123: { senderId: кто_печатает }
   @SubscribeMessage('chat:typing')
   handleTyping(
     @MessageBody() data: { receiverId: number },

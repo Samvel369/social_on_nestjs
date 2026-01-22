@@ -5,9 +5,11 @@ import {
   Param,
   UseGuards,
   Render,
+  ParseIntPipe,
+  Body,
 } from '@nestjs/common';
 import { WorldService } from './world.service';
-import { PrismaService } from '../../prisma/prisma.service'; // 🔥
+import { PrismaService } from '../../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import {
   CurrentUser,
@@ -22,18 +24,33 @@ function getDisplayName(user: any) {
 }
 
 @Controller('world')
+@UseGuards(JwtAuthGuard)
 export class WorldController {
   constructor(
     private readonly service: WorldService,
-    private readonly prisma: PrismaService // 🔥
+    private readonly prisma: PrismaService
   ) {}
 
+  // 🔥 МОДИФИЦИРОВАННЫЙ МЕТОД: API для получения количества НЕПРОСМОТРЕННЫХ активных действий
+  @Get('unseen-actions-count') // Изменил название для ясности, чтобы отличалось от общего количества
+  async getUnseenActiveActionsCount(@CurrentUser() user: AuthUser) {
+    const count = await this.service.getUnseenActiveActionsCount(user.userId);
+    return { count };
+  }
+
+  // 🔥 НОВЫЙ МЕТОД: API для отметки о просмотре всех активных действий
+  @Post('mark-seen')
+  async markWorldAsSeen(@CurrentUser() user: AuthUser) {
+    await this.service.markWorldActionsAsSeen(user.userId);
+    // После отметки о просмотре, отправляем событие, чтобы обновить бейдж у пользователя
+    // (он сбросится, так как все действия станут "просмотренными")
+    return { ok: true };
+  }
+
   // ===== HTML =====
-  @UseGuards(JwtAuthGuard)
   @Get('view')
   @Render('world.html')
   async view(@CurrentUser() user: AuthUser) {
-    // 🔥 Формируем правильное имя
     const me = await this.prisma.user.findUnique({ where: { id: user.userId } });
 
     const current_user = me ? {
@@ -55,7 +72,6 @@ export class WorldController {
   }
 
   // ===== JSON API =====
-  @UseGuards(JwtAuthGuard)
   @Post('mark/:id')
   async mark(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.markAction(
@@ -68,5 +84,25 @@ export class WorldController {
   @Get('mark-counts')
   getMarkCounts() {
     return this.service.getMarkCounts();
+  }
+
+  @Post('create-draft')
+  async createDraft(@CurrentUser() user: AuthUser, @Body() dto: { text: string }) {
+    return this.service.createDraft(user.userId, dto);
+  }
+
+  @Post('publish/:id')
+  async publishAction(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: { duration: number }) {
+    return this.service.publishAction(user.userId, id, dto);
+  }
+
+  @Post('edit/:id')
+  async editAction(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: { text: string }) {
+    return this.service.editAction(user.userId, id, dto);
+  }
+
+  @Post('delete/:id')
+  async deleteAction(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.deleteAction(user.userId, id);
   }
 }

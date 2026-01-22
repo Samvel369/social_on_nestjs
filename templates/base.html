@@ -167,7 +167,6 @@
             <a href="/api/friends/view" title="Друзья">
                 <i class="fa-solid fa-user-group"></i>
                 <span>Друзья</span>
-                <!-- 🔥 БЕЙДЖ ДЛЯ ДРУЗЕЙ 🔥 -->
                 <span id="friends-badge" class="menu-badge" style="display: {{ 'inline-block' if friends_requests_count > 0 else 'none' }};">
                     {{ friends_requests_count }}
                 </span>
@@ -190,6 +189,10 @@
             <a href="/api/world/view" title="Наш мир">
                 <i class="fa-solid fa-earth-americas"></i>
                 <span>Наш мир</span>
+                <!-- 🔥 БЕЙДЖ ДЛЯ МИРА (теперь отображает непросмотренные) 🔥 -->
+                <span id="world-badge" class="menu-badge" style="display: {{ 'inline-block' if world_active_actions_count > 0 else 'none' }};">
+                    {{ world_active_actions_count }}
+                </span>
             </a>
         </li>
         <li style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px;">
@@ -251,9 +254,10 @@
 </script>
 
 <script>
-(function(){
+(function() {
     const msgBadge = document.getElementById('global-msg-badge');
     const friendsBadge = document.getElementById('friends-badge');
+    const worldBadge = document.getElementById('world-badge');
     const toastContainer = document.getElementById('toast-container');
     let socket = window.socket;
 
@@ -274,7 +278,7 @@
         } catch(e) {}
     }
 
-    // 🔥 Функция обновления счетчика заявок в друзья 🔥
+    // Функция обновления счетчика заявок в друзья
     async function updateFriendsBadgeCount() {
         if(!window.CURRENT_USER_ID) return;
         try {
@@ -291,6 +295,44 @@
         } catch(e) {}
     }
 
+    // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ: Обновление счетчика непросмотренных действий в "Наш мир" 🔥
+    async function updateWorldBadgeCount() {
+        if(!window.CURRENT_USER_ID) {
+            if (worldBadge) worldBadge.style.display = 'none';
+            return;
+        }
+
+        // Если пользователь находится на странице "Наш мир", скрываем бейдж и отправляем сигнал серверу
+        if (window.location.pathname.startsWith('/api/world/view')) {
+            if (worldBadge) worldBadge.style.display = 'none'; // Скрываем бейдж
+            // Отправляем запрос на сервер, чтобы пометить действия как "просмотренные"
+            try {
+                await fetch('/api/world/mark-seen', { method: 'POST', credentials: 'include' });
+            } catch (e) {
+                console.error("Error marking world actions as seen:", e);
+            }
+            return; // Выходим, так как бейдж должен быть скрыт на этой странице
+        }
+
+        // На других страницах запрашиваем количество непросмотренных
+        try {
+            const res = await fetch('/api/world/unseen-actions-count'); // 🔥 НОВАЯ РУЧКА
+            const data = await res.json();
+            if (worldBadge) {
+                if (data.count > 0) {
+                    worldBadge.style.display = 'inline-block';
+                    worldBadge.innerText = data.count;
+                } else {
+                    worldBadge.style.display = 'none';
+                }
+            }
+        } catch(e) {
+            console.error('Error fetching unseen world actions count:', e);
+            if (worldBadge) worldBadge.style.display = 'none';
+        }
+    }
+
+
     function showToast(senderName, text) {
         const div = document.createElement('div');
         div.className = 'toast';
@@ -305,11 +347,11 @@
     document.addEventListener('DOMContentLoaded', () => {
         updateMsgBadgeCount();
         updateFriendsBadgeCount();
+        updateWorldBadgeCount(); // Вызываем при загрузке страницы
         
         if (!socket && window.socket) socket = window.socket;
         
         if (socket) {
-            // Новое сообщение
             socket.on('chat:new_message', (msg) => {
                 if (window.CURRENT_USER_ID === msg.senderId) return; 
                 if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return; 
@@ -317,15 +359,21 @@
                 updateMsgBadgeCount(); 
             });
 
-            // 🔥 Обновление списка друзей (заявки) 🔥
             socket.on('friends:lists:refresh', () => {
                 updateFriendsBadgeCount();
+            });
+
+            // 🔥 Слушаем обновление действий мира 🔥
+            // Теперь эта функция сама решает, показывать или скрывать бейдж в зависимости от страницы
+            socket.on('world:actions:refresh', () => {
+                updateWorldBadgeCount(); 
             });
         }
     });
 
     window.updateGlobalBadge = updateMsgBadgeCount;
     window.updateFriendsBadge = updateFriendsBadgeCount;
+    window.updateWorldBadge = updateWorldBadgeCount;
 })();
 </script>
 

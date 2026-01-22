@@ -4,12 +4,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 import { map } from 'rxjs/operators';
 import { FriendRequestStatus } from '@prisma/client';
+import { WorldService } from '../../modules/world/world.service'; // 🔥 Добавил импорт WorldService
 
 @Injectable()
 export class LocalsUserInterceptor implements NestInterceptor {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rt: RealtimeGateway,
+    private readonly worldService: WorldService, // 🔥 Инжектировал WorldService
   ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
@@ -27,7 +29,7 @@ export class LocalsUserInterceptor implements NestInterceptor {
           avatar_url: u.avatarUrl ?? '',
         };
 
-        // 🔥 Считаем заявки в друзья для начальной отрисовки
+        // Считаем заявки в друзья для начальной отрисовки
         try {
           res.locals.friends_requests_count = await this.prisma.friendRequest.count({
             where: {
@@ -37,6 +39,14 @@ export class LocalsUserInterceptor implements NestInterceptor {
           });
         } catch {
           res.locals.friends_requests_count = 0;
+        }
+
+        // 🔥 МЕТОД: Считаем НЕПРОСМОТРЕННЫЕ активные действия для начальной отрисовки
+        try {
+            res.locals.world_active_actions_count = await this.worldService.getUnseenActiveActionsCount(u.userId ?? u.id);
+        } catch (e) {
+            console.error("Error in LocalsUserInterceptor fetching unseen world actions:", e);
+            res.locals.world_active_actions_count = 0;
         }
       }
     } catch { /* ignore */ }
@@ -54,6 +64,10 @@ export class LocalsUserInterceptor implements NestInterceptor {
 
         if (typeof res?.locals?.friends_requests_count !== 'undefined' && !('friends_requests_count' in out)) {
           out.friends_requests_count = res.locals.friends_requests_count;
+        }
+        // 🔥 Передаем счетчик НЕПРОСМОТРЕННЫХ активных действий
+        if (typeof res?.locals?.world_active_actions_count !== 'undefined' && !('world_active_actions_count' in out)) {
+            out.world_active_actions_count = res.locals.world_active_actions_count;
         }
         if (typeof res?.locals?.total_users !== 'undefined' && !('total_users' in out)) {
           out.total_users = res.locals.total_users;

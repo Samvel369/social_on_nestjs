@@ -10,6 +10,36 @@ export class WorldService {
     private rt: RealtimeGateway,
   ) {}
 
+  // 🔥 НОВЫЙ МЕТОД: Подсчет НЕПРОСМОТРЕННЫХ активных действий
+  async getUnseenActiveActionsCount(userId: number): Promise<number> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { lastViewedWorldAt: true },
+    });
+
+    if (!user) {
+      return 0;
+    }
+
+    const now = new Date();
+    // Считаем действия, которые опубликованы и активны ПОСЛЕ lastViewedWorldAt пользователя
+    return this.prisma.action.count({
+      where: {
+        isPublished: true,
+        createdAt: { gt: user.lastViewedWorldAt }, // Опубликовано после последнего просмотра
+        expiresAt: { gt: now }, // И еще активно
+      },
+    });
+  }
+
+  // 🔥 НОВЫЙ МЕТОД: Отметить все действия как просмотренные
+  async markWorldActionsAsSeen(userId: number): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastViewedWorldAt: new Date() },
+    });
+  }
+
   async getWorld(userId: number) {
     const now = new Date();
     const daily = await this.prisma.action.findMany({ where: { isDaily: true } });
@@ -22,9 +52,11 @@ export class WorldService {
   }
 
   async createDaily(dto: CreateActionDto) {
-    return this.prisma.action.create({
+    const action = await this.prisma.action.create({
       data: { text: dto.text, isDaily: true, isPublished: true },
     });
+    this.rt.emitToAll('world:actions:refresh'); // Уведомляем всех об изменении
+    return action;
   }
 
   async createDraft(userId: number, dto: CreateActionDto) {
@@ -42,7 +74,12 @@ export class WorldService {
   async deleteAction(userId: number, actionId: number) {
     const action = await this.prisma.action.findUnique({ where: { id: actionId } });
     if (!action || action.userId !== userId) throw new ForbiddenException();
-    return this.prisma.action.delete({ where: { id: actionId } });
+    const deletedAction = await this.prisma.action.delete({ where: { id: actionId } });
+    // Если удалили опубликованное действие, возможно, нужно обновить счетчик
+    if (deletedAction.isPublished && deletedAction.expiresAt && deletedAction.expiresAt > new Date()) {
+      this.rt.emitToAll('world:actions:refresh'); // Уведомляем всех об изменении
+    }
+    return deletedAction;
   }
 
   async publishAction(userId: number, actionId: number, dto: PublishActionDto) {
@@ -55,6 +92,7 @@ export class WorldService {
         userId,
         isPublished: true,
         text: { contains: action.text },
+        expiresAt: { gt: now } // Проверяем только живые действия
       },
     });
 
@@ -64,10 +102,12 @@ export class WorldService {
       }
     }
 
-    return this.prisma.action.update({
+    const updatedAction = await this.prisma.action.update({
       where: { id: actionId },
       data: { isPublished: true, expiresAt: new Date(now.getTime() + dto.duration * 60 * 1000) },
     });
+    this.rt.emitToAll('world:actions:refresh'); // Уведомляем всех об изменении
+    return updatedAction;
   }
 
   async getPublished() {
@@ -80,20 +120,18 @@ export class WorldService {
   }
 
   async markAction(userId: number, actionId: number, username: string) {
-    // Берём только userId, чтобы TS точно знал, что поле есть
     const action = await this.prisma.action.findUnique({
       where: { id: actionId },
       select: { userId: true },
     });
 
     if (!action || action.userId === userId) {
-      return { success: true }; // нечего делать
+      return { success: true };
     }
 
     const ownerId = action.userId!;
     const now = new Date();
 
-    // ищем существующую записьPotentialFriendView
     const existing = await this.prisma.potentialFriendView.findFirst({
       where: { viewerId: ownerId, userId },
       select: { id: true },

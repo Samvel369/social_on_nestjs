@@ -106,7 +106,7 @@ export class MyActionsService {
       throw new ConflictException('Такое действие уже происходит прямо сейчас! Найдите его в "Нашем мире" и нажмите "Я тоже".');
     }
 
-    return this.prisma.action.update({
+    const updatedAction = await this.prisma.action.update({
       where: { id },
       data: {
         isPublished: true,
@@ -117,6 +117,11 @@ export class MyActionsService {
       },
       select: { id: true, text: true, expiresAt: true },
     });
+
+    // 🔥 Уведомляем всех об изменении действий в мире
+    this.rt.emitToAll('world:actions:refresh');
+
+    return updatedAction;
   }
 
   /** Удалить действие */
@@ -125,11 +130,20 @@ export class MyActionsService {
     if (!action) throw new NotFoundException('Action not found');
     if (action.userId !== userId) throw new ForbiddenException('not your action');
 
+    const wasPublished = action.isPublished;
+    const wasActive = wasPublished && action.expiresAt && action.expiresAt > new Date();
+
     if (action.isPublished) {
       await this.prisma.actionMark.deleteMany({ where: { actionId: id } });
     }
 
     await this.prisma.action.delete({ where: { id } });
+
+    // 🔥 Если удалили активное опубликованное действие, уведомляем всех
+    if (wasActive) {
+      this.rt.emitToAll('world:actions:refresh');
+    }
+
     return { ok: true };
   }
 }

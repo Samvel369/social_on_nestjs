@@ -11,39 +11,40 @@ generator client {
 // ---------- модели ----------
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  email        String   @unique
-  password     String
-  firstName    String?
-  lastName     String?
-  lastActive   DateTime @default(now())
-  avatarUrl    String   @default("/static/default-avatar.png")
-  birthdate    DateTime?
-  status       String   @default("Приветствую всех!")
-  about        String   @default("Пока ничего о себе не рассказал.")
+  id                    Int                 @id @default(autoincrement())
+  username              String              @unique
+  email                 String              @unique
+  password              String
+  firstName             String?
+  lastName              String?
+  lastActive            DateTime            @default(now())
+  avatarUrl             String              @default("/static/default-avatar.png")
+  birthdate             DateTime?
+  status                String              @default("Приветствую всех!")
+  about                 String              @default("Пока ничего о себе не рассказал.")
+  lastViewedWorldAt     DateTime            @default(now()) // 🔥 НОВОЕ: время последнего просмотра "Нашего мира"
 
   // Связи
-  actions Action[]
-  marks   ActionMark[]
+  actions               Action[]
+  marks                 ActionMark[]
 
-  ignored    IgnoredUser[] @relation("ignorer")
-  ignoredBy  IgnoredUser[] @relation("ignored")
+  ignored               IgnoredUser[]       @relation("ignorer")
+  ignoredBy             IgnoredUser[]       @relation("ignored")
 
-  sentRequests     FriendRequest[] @relation("sender")
-  receivedRequests FriendRequest[] @relation("receiver")
+  sentRequests          FriendRequest[]     @relation("sender")
+  receivedRequests      FriendRequest[]     @relation("receiver")
 
-  subscribers   Subscriber[] @relation("owner")
-  subscriptions Subscriber[] @relation("subscriber")
+  subscribers           Subscriber[]        @relation("owner")
+  subscriptions         Subscriber[]        @relation("subscriber")
 
-  potentialViews PotentialFriendView[] @relation("pfv_viewer")
-  viewedBy       PotentialFriendView[] @relation("pfv_user")
+  potentialViews        PotentialFriendView[] @relation("pfv_viewer")
+  viewedBy              PotentialFriendView[] @relation("pfv_user")
 
-  sentMessages     Message[] @relation("sent_messages")
-  receivedMessages Message[] @relation("received_messages")
+  sentMessages          Message[]           @relation("sent_messages")
+  receivedMessages      Message[]           @relation("received_messages")
   
   // Реакции пользователя
-  reactions        MessageReaction[]
+  reactions             MessageReaction[]
 }
 
 model Action {
