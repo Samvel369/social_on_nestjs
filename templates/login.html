@@ -3,16 +3,40 @@
 {% block title %}Вход{% endblock %}
 
 {% block content %}
-<h2>Вход</h2>
-<form id="login-form" method="POST" action="/api/auth/login" novalidate>
-  <label>Имя пользователя:</label><br>
-  <input type="text" name="username" required><br><br>
+<div class="welcome-section">
+  <h1>
+    <i class="fa-solid fa-right-to-bracket"></i>
+    Вход
+  </h1>
+  <p>Войдите, чтобы найти тех, кто переживает те же моменты, что и вы</p>
+</div>
 
-  <label>Пароль:</label><br>
-  <input type="password" name="password" required><br><br>
+<div style="max-width: 500px; margin: 0 auto;">
+  <form id="login-form" method="POST" action="/api/auth/login" novalidate style="background: var(--bg-card); padding: 32px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+    <div style="margin-bottom: 20px;">
+      <label>
+        <i class="fa-solid fa-user"></i> Имя пользователя
+      </label>
+      <input type="text" name="username" required placeholder="Введите имя пользователя">
+    </div>
 
-  <input type="submit" value="Войти">
-</form>
+    <div style="margin-bottom: 24px;">
+      <label>
+        <i class="fa-solid fa-lock"></i> Пароль
+      </label>
+      <input type="password" name="password" required placeholder="Введите пароль">
+    </div>
+
+    <button type="submit" style="width: 100%;">
+      <i class="fa-solid fa-arrow-right"></i>
+      Войти
+    </button>
+
+    <p style="text-align: center; margin-top: 20px; color: var(--text-secondary);">
+      Нет аккаунта? <a href="/api/auth/register">Зарегистрируйтесь</a>
+    </p>
+  </form>
+</div>
 
 <script src="/static/js/auth.js"></script>
 {% endblock %}

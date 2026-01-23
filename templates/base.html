@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>{% block title %}Соцсеть{% endblock %}</title>
   <meta name="csrf-token" content="{{ csrf_token | default('') }}">
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=11" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   
@@ -153,20 +153,20 @@
         {% if current_user and (current_user.id or current_user.userId) %}
         <li>
             <a href="/api/main/" title="Главная">
-                <i class="fa-solid fa-house"></i> 
+                <i class="fa-solid fa-home"></i> 
                 <span>Главная</span>
             </a>
         </li>
         <li>
             <a href="/api/profile/view" title="Профиль">
-                <i class="fa-solid fa-user"></i>
+                <i class="fa-solid fa-id-card"></i>
                 <span>Профиль</span>
             </a>
         </li>
         <li>
             <a href="/api/friends/view" title="Друзья">
-                <i class="fa-solid fa-user-group"></i>
-                <span>Друзья</span>
+                <i class="fa-solid fa-users"></i>
+                <span>Связи</span>
                 <span id="friends-badge" class="menu-badge" style="display: {{ 'inline-block' if friends_requests_count > 0 else 'none' }};">
                     {{ friends_requests_count }}
                 </span>
@@ -174,30 +174,29 @@
         </li>
         <li>
             <a href="/api/chat" title="Сообщения">
-                <i class="fa-solid fa-comment-dots"></i>
-                <span>Сообщения</span>
+                <i class="fa-solid fa-comments"></i>
+                <span>Чат</span>
                 <span id="global-msg-badge" class="menu-badge">0</span>
             </a>
         </li>
         <li>
             <a href="/api/my-actions/view" title="Мои действия">
-                <i class="fa-solid fa-bolt"></i>
+                <i class="fa-solid fa-fire"></i>
                 <span>Мои действия</span>
             </a>
         </li>
         <li>
             <a href="/api/world/view" title="Наш мир">
-                <i class="fa-solid fa-earth-americas"></i>
+                <i class="fa-solid fa-globe"></i>
                 <span>Наш мир</span>
-                <!-- 🔥 БЕЙДЖ ДЛЯ МИРА (теперь отображает непросмотренные) 🔥 -->
                 <span id="world-badge" class="menu-badge" style="display: {{ 'inline-block' if world_active_actions_count > 0 else 'none' }};">
                     {{ world_active_actions_count }}
                 </span>
             </a>
         </li>
-        <li style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px;">
-            <a href="/api/auth/logout" title="Выход" style="color: #dc3545;">
-                <i class="fa-solid fa-right-from-bracket"></i>
+        <li style="margin-top: auto; padding-top: 20px;">
+            <a href="/api/auth/logout" title="Выход">
+                <i class="fa-solid fa-sign-out-alt"></i>
                 <span>Выход</span>
             </a>
         </li>

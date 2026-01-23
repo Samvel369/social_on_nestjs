@@ -2,9 +2,23 @@
 {% block title %}Главная{% endblock %}
 
 {% block content %}
-<h2>Добро пожаловать!</h2>
-<h3>Топ 10 действий (по отметкам за последнюю минуту)</h3>
-<ul id="top-actions-list" style="list-style:none;padding:0;">
+<div class="welcome-section">
+  <h1>
+    <i class="fa-solid fa-house"></i>
+    Добро пожаловать
+  </h1>
+  <p>
+    Никто не один в своих моментах.<br>
+    Вот что происходит с людьми прямо сейчас
+  </p>
+</div>
+
+<h2 style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 32px;">
+  <i class="fa-solid fa-fire"></i>
+  Топ 10 действий за последнюю минуту
+</h2>
+
+<ul id="top-actions-list">
   <li>Загрузка...</li>
 </ul>
 
@@ -14,37 +28,34 @@ function updateTopActions() {
     .then(r => r.json())
     .then(data => {
       const list = document.getElementById('top-actions-list');
-      list.innerHTML = '';
+      
       if (!Array.isArray(data) || data.length === 0) {
-        const li = document.createElement('li');
-        li.textContent = 'Нет активных действий';
-        list.appendChild(li);
+        list.innerHTML = '<li style="text-align: center; color: var(--text-muted);">Нет активных действий</li>';
         return;
       }
-      data.forEach((action, idx) => {
-        const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.justifyContent = 'space-between';
-        li.style.padding = '6px 10px';
-        li.style.borderBottom = '1px solid #ccc';
 
-        const left = document.createElement('span');
-        const link = document.createElement('a');
-        link.href = `/api/actions/action_card/${action.id}`;
-        link.target = '_blank';
-        link.textContent = `${idx + 1}. ${action.text}`;
-        left.appendChild(link);
+      // Сравниваем с текущим контентом
+      const currentContent = list.innerHTML;
+      const newContent = data.map((action, idx) => {
+        return `<li data-id="${action.id}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="/api/actions/action_card/${action.id}" target="_blank" style="flex: 1;">
+              <strong style="color: var(--accent-pulse);">${idx + 1}.</strong> ${action.text}
+            </a>
+            <span style="font-weight: 700; color: var(--accent-connection); font-size: 18px; min-width: 60px; text-align: right;">
+              ${action.marks ?? 0} <i class="fa-solid fa-user" style="font-size: 14px; opacity: 0.7;"></i>
+            </span>
+          </div>
+        </li>`;
+      }).join('');
 
-        const right = document.createElement('span');
-        right.textContent = String(action.marks ?? 0);
-
-        li.appendChild(left);
-        li.appendChild(right);
-        list.appendChild(li);
-      });
+      if (currentContent !== newContent) {
+        list.innerHTML = newContent;
+      }
     })
     .catch(() => {});
 }
+
 updateTopActions();
 setInterval(updateTopActions, 1000);
 </script>

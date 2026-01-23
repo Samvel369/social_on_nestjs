@@ -2,63 +2,107 @@
 {% block title %}Мои действия{% endblock %}
 
 {% block content %}
-<h2>Мои действия</h2>
+<h1>
+  <i class="fa-solid fa-bolt"></i>
+  Мои действия
+</h1>
 
-<h3>Добавить новое действие</h3>
-<form id="create-action-form" data-ajax="1">
-  <input type="text" id="new-action-text" name="text" placeholder="Введите текст действия" required />
-  <button type="submit">Создать</button>
-</form>
+<p style="color: var(--text-secondary); font-size: 18px; margin-bottom: 32px;">
+  Управляйте своими действиями - создавайте, публикуйте, делитесь моментами
+</p>
 
-<h3>Черновики</h3>
-<div id="drafts-list">
-  {% if drafts and drafts.length %}
-    {% for d in drafts %}
-      <div class="action-item" data-id="{{ d.id }}">
-        <a href="/api/actions/action_card/{{ d.id }}">{{ d.text }}</a>
-        <button type="button" class="delete-btn">Удалить</button>
-        <select class="duration">
-          <option value="10">10 мин</option>
-          <option value="30">30 мин</option>
-          <option value="60">1 час</option>
-        </select>
-        <button type="button" class="publish-btn">Опубликовать</button>
-      </div>
-    {% endfor %}
-  {% else %}
-    <p id="no-drafts">Нет черновиков</p>
-  {% endif %}
+<div style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color); margin-bottom: 32px;">
+  <h3>
+    <i class="fa-solid fa-plus-circle" style="color: var(--accent-connection);"></i>
+    Добавить новое действие
+  </h3>
+  <form id="create-action-form" data-ajax="1" style="display: flex; gap: 12px; margin-top: 20px;">
+    <input type="text" id="new-action-text" name="text" placeholder="Что вы делаете прямо сейчас?" required style="flex: 1;" />
+    <button type="submit" class="btn-success">
+      <i class="fa-solid fa-paper-plane"></i>
+      Создать
+    </button>
+  </form>
 </div>
 
-<h3>Опубликованные действия</h3>
-<div id="published-list">
-  {% if published and published.length %}
-    {% for a in published %}
-      <div class="action-item" data-id="{{ a.id }}">
-        <a href="/api/actions/action_card/{{ a.id }}">{{ a.text }}</a>
-        <small>
-          Действует до:
-          <span class="expires-iso">{{ a.expiresAt or '—' }}</span>
-          {% if a.expiresAt %}
-            (осталось: <span class="expires-left" data-expires="{{ a.expiresAt }}"></span>)
-          {% endif %}
-        </small>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
+  <!-- Черновики -->
+  <div>
+    <h3 style="margin-bottom: 20px;">
+      <i class="fa-solid fa-file" style="color: var(--accent-pulse);"></i>
+      Черновики
+    </h3>
+    <div id="drafts-list">
+      {% if drafts and drafts.length %}
+        {% for d in drafts %}
+          <div class="action-item draft-action" data-id="{{ d.id }}" style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <a href="/api/actions/action_card/{{ d.id }}" style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ d.text }}</a>
+              
+              <select class="duration" style="width: 95px; font-size: 12px; padding: 6px;">
+                <option value="10">10 мин</option>
+                <option value="30">30 мин</option>
+                <option value="60">1 час</option>
+              </select>
+              
+              <button type="button" class="publish-btn btn-success" style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+                <i class="fa-solid fa-rocket"></i> Опубликовать
+              </button>
+              
+              <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p id="no-drafts" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет черновиков</p>
+      {% endif %}
+    </div>
+  </div>
 
-        <select class="republish-duration">
-          <option value="10">+10 мин</option>
-          <option value="30">+30 мин</option>
-          <option value="60">+1 час</option>
-        </select>
-        <button type="button" class="republish-btn" disabled>Опубликовать снова</button>
-
-        <button type="button" class="delete-btn">Удалить</button>
-      </div>
-    {% endfor %}
-  {% else %}
-    <p id="no-published">Нет опубликованных действий</p>
-  {% endif %}
+  <!-- Опубликованные -->
+  <div>
+    <h3 style="margin-bottom: 20px;">
+      <i class="fa-solid fa-fire" style="color: var(--accent-moment);"></i>
+      Опубликованные действия
+    </h3>
+    <div id="published-list">
+      {% if published and published.length %}
+        {% for a in published %}
+          <div class="action-item" data-id="{{ a.id }}" style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+              <a href="/api/actions/action_card/{{ a.id }}" style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ a.text }}</a>
+              
+              <select class="republish-duration" style="width: 95px; font-size: 12px; padding: 6px;">
+                <option value="10">+10м</option>
+                <option value="30">+30м</option>
+                <option value="60">+1ч</option>
+              </select>
+              
+              <button type="button" class="republish-btn btn-success" style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+                <i class="fa-solid fa-plus"></i> Продлить
+              </button>
+              
+              <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+            
+            <small style="color: var(--text-secondary); display: block; font-size: 10px; padding-left: 2px;">
+              <i class="fa-solid fa-clock"></i> Действует до: <span class="expires-iso">{{ a.expiresAt or '—' }}</span>
+              {% if a.expiresAt %}
+                (осталось: <span class="expires-left" data-expires="{{ a.expiresAt }}"></span>)
+              {% endif %}
+            </small>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p id="no-published" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет опубликованных действий</p>
+      {% endif %}
+    </div>
+  </div>
 </div>
-
 
 <script src="/static/js/my_actions.js"></script>
 {% endblock %}

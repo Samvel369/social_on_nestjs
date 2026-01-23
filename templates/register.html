@@ -3,22 +3,54 @@
 {% block title %}Регистрация{% endblock %}
 
 {% block content %}
-<h2>Регистрация</h2>
-<form id="register-form" method="POST" action="/api/auth/register" novalidate>
-  <label>Имя пользователя:</label><br>
-  <input type="text" name="username" required><br><br>
+<div class="welcome-section">
+  <h1>
+    <i class="fa-solid fa-user-plus"></i>
+    Регистрация
+  </h1>
+  <p>Создайте аккаунт и станьте частью сообщества, где никто не одинок в своих моментах</p>
+</div>
 
-  <label>Пароль:</label><br>
-  <input type="password" name="password" required><br><br>
+<div style="max-width: 500px; margin: 0 auto;">
+  <form id="register-form" method="POST" action="/api/auth/register" novalidate style="background: var(--bg-card); padding: 32px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+    <div style="margin-bottom: 20px;">
+      <label>
+        <i class="fa-solid fa-user"></i> Имя пользователя
+      </label>
+      <input type="text" name="username" required placeholder="Придумайте имя пользователя">
+    </div>
 
-  <label>Подтвердите пароль:</label><br>
-  <input type="password" name="confirmPassword" required><br><br>
+    <div style="margin-bottom: 20px;">
+      <label>
+        <i class="fa-solid fa-envelope"></i> Email
+      </label>
+      <input type="email" name="email" required placeholder="your@email.com">
+    </div>
 
-  <label>Email:</label><br>
-  <input type="email" name="email" required><br><br>
+    <div style="margin-bottom: 20px;">
+      <label>
+        <i class="fa-solid fa-lock"></i> Пароль
+      </label>
+      <input type="password" name="password" required placeholder="Придумайте надёжный пароль">
+    </div>
 
-  <input type="submit" value="Зарегистрироваться">
-</form>
+    <div style="margin-bottom: 24px;">
+      <label>
+        <i class="fa-solid fa-check"></i> Подтвердите пароль
+      </label>
+      <input type="password" name="confirmPassword" required placeholder="Повторите пароль">
+    </div>
+
+    <button type="submit" style="width: 100%;" class="btn-success">
+      <i class="fa-solid fa-rocket"></i>
+      Зарегистрироваться
+    </button>
+
+    <p style="text-align: center; margin-top: 20px; color: var(--text-secondary);">
+      Уже есть аккаунт? <a href="/api/auth/login">Войдите</a>
+    </p>
+  </form>
+</div>
 
 <script src="/static/js/auth.js"></script>
 {% endblock %}

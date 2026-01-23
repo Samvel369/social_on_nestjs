@@ -4,41 +4,73 @@
 {% block content %}
 {% set u = user or current_user %}
 
-<h2>Профиль</h2>
-<p><a href="/api/profile/edit_profile">Редактировать профиль</a></p>
-
-<div style="display: flex; align-items: center; gap: 20px;">
-  {% if u and u.avatar_url %}
-    <img src="{{ (u.avatar_url or user.avatar_url) or '/static/default-avatar.png' }}"
-        width="120" height="120"
-        style="border-radius:50%;object-fit:cover;" />
-  {% else %}
-    <img src="/static/default-avatar.png" width="120" height="120" style="border-radius: 50%;">
-  {% endif %}
-
-  <div>
-    <p><strong>Логин:</strong> {{ u.username | default('—') }}</p>
-    <p><strong>Email:</strong> {{ u.email | default('—') }}</p>
-    {% if u.birthdate %}
-      <p><strong>Дата рождения:</strong> {{ u.birthdate }}</p>
+<div class="profile-header">
+  <h1>
+    <i class="fa-solid fa-user-circle"></i>
+    Профиль
+  </h1>
+  
+  <div style="margin: 32px 0;">
+    {% if u and u.avatar_url %}
+      <img src="{{ (u.avatar_url or user.avatar_url) or '/static/default-avatar.png' }}"
+          alt="Avatar" style="width: 140px; height: 140px; border-radius: var(--radius-full); border: 4px solid var(--accent-primary); box-shadow: var(--shadow-md); object-fit: cover;" />
+    {% else %}
+      <img src="/static/default-avatar.png" alt="Default Avatar" style="width: 140px; height: 140px; border-radius: var(--radius-full); border: 4px solid var(--accent-primary); box-shadow: var(--shadow-md);">
     {% endif %}
-    <p><strong>Статус:</strong> {{ u.status | default('—') }}</p>
   </div>
+
+  <h2 style="margin: 16px 0; color: var(--accent-primary);">{{ u.username | default('—') }}</h2>
+  
+  <a href="/api/profile/edit_profile" class="btn" style="text-decoration: none;">
+    <i class="fa-solid fa-pen-to-square"></i>
+    Редактировать профиль
+  </a>
 </div>
 
-<div style="margin-top: 20px;">
-  <p><strong>О себе:</strong></p>
-  <div style="background: #f9f9f9; padding: 10px; border-radius: 5px;">
-    {{ u.about | default('—') }}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 32px;">
+  <div style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-md); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm);">
+    <h3>
+      <i class="fa-solid fa-circle-info" style="color: var(--accent-primary);"></i>
+      Основная информация
+    </h3>
+    <p><strong><i class="fa-solid fa-envelope"></i> Email:</strong> {{ u.email | default('—') }}</p>
+    {% if u.birthdate %}
+      <p><strong><i class="fa-solid fa-cake-candles"></i> Дата рождения:</strong> {{ u.birthdate }}</p>
+    {% endif %}
+    <p><strong><i class="fa-solid fa-comment"></i> Статус:</strong> {{ u.status | default('—') }}</p>
+  </div>
+
+  <div style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-md); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm);">
+    <h3>
+      <i class="fa-solid fa-book" style="color: var(--accent-connection);"></i>
+      О себе
+    </h3>
+    <div style="background: rgba(52, 152, 219, 0.05); padding: 16px; border-radius: var(--radius-sm); border-left: 4px solid var(--accent-primary); min-height: 80px;">
+      {{ u.about | default('Пользователь пока ничего не рассказал о себе') }}
+    </div>
   </div>
 </div>
 
 <hr>
 
-<h3>Вкладки</h3>
-<ul>
-  <li><a href="/api/friends/view">Друзья</a></li>
-  <li><a href="/api/my-actions/view">Мои действия</a></li>
-  <li><span>Статистика</span> (в разработке)</li>
-</ul>
+<h3 style="margin-bottom: 24px;">
+  <i class="fa-solid fa-link"></i>
+  Быстрые ссылки
+</h3>
+
+<div style="display: flex; gap: 16px; flex-wrap: wrap;">
+  <a href="/api/friends/view" class="btn">
+    <i class="fa-solid fa-user-group"></i>
+    Друзья
+  </a>
+  <a href="/api/my-actions/view" class="btn btn-success">
+    <i class="fa-solid fa-bolt"></i>
+    Мои действия
+  </a>
+  <button disabled class="btn" style="opacity: 0.5; cursor: not-allowed;">
+    <i class="fa-solid fa-chart-simple"></i>
+    Статистика (скоро)
+  </button>
+</div>
+
 {% endblock %}

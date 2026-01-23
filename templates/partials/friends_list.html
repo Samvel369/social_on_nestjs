@@ -1,13 +1,15 @@
 {% if friends and friends.length %}
   {% for u in friends %}
-    <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
-      <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
-      <div style="flex:1 1 auto;">
+    <div class="friend-item">
+      <img src="{{ u.avatar_url }}" alt="avatar" class="avatar">
+      <div class="friend-info">
         <strong><a href="/profile/{{ u.id }}">{{ u.username }}</a></strong>
       </div>
-      <button data-action="remove-friend" data-user-id="{{ u.id }}">Удалить из друзей</button>
+      <button data-action="remove-friend" data-user-id="{{ u.id }}" class="btn-danger">
+        <i class="fa-solid fa-user-minus"></i> Удалить
+      </button>
     </div>
   {% endfor %}
 {% else %}
-  <p id="no-friends-msg">Пока нет друзей.</p>
+  <p style="color: var(--text-muted); text-align: center; padding: 40px;">Пока нет друзей</p>
 {% endif %}

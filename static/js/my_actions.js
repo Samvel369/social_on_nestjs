@@ -56,22 +56,32 @@
     if (!draftsBox) return;
     draftsBox.innerHTML = '';
     if (!list.length) {
-      draftsBox.innerHTML = '<p id="no-drafts">Нет черновиков</p>';
+      draftsBox.innerHTML = '<p id="no-drafts" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет черновиков</p>';
       return;
     }
     for (const d of list) {
       const el = document.createElement('div');
-      el.className = 'action-item';
+      el.className = 'action-item draft-action';
       el.dataset.id = d.id;
+      el.style.cssText = 'background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);';
       el.innerHTML = `
-        <a href="/api/actions/action_card/${d.id}">${escapeHtml(d.text)}</a>
-        <button type="button" class="delete-btn">Удалить</button>
-        <select class="duration">
-          <option value="10">10 мин</option>
-          <option value="30">30 мин</option>
-          <option value="60">1 час</option>
-        </select>
-        <button type="button" class="publish-btn">Опубликовать</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <a href="/api/actions/action_card/${d.id}" style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(d.text)}</a>
+          
+          <select class="duration" style="width: 95px; font-size: 12px; padding: 6px;">
+            <option value="10">10 мин</option>
+            <option value="30">30 мин</option>
+            <option value="60">1 час</option>
+          </select>
+          
+          <button type="button" class="publish-btn btn-success" style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+            <i class="fa-solid fa-rocket"></i> Опубликовать
+          </button>
+          
+          <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
       `;
       draftsBox.appendChild(el);
     }
@@ -81,30 +91,39 @@
     if (!publishedBox) return;
     publishedBox.innerHTML = '';
     if (!list.length) {
-      publishedBox.innerHTML = '<p id="no-published">Нет опубликованных действий</p>';
+      publishedBox.innerHTML = '<p id="no-published" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет опубликованных действий</p>';
       return;
     }
     for (const a of list) {
       const el = document.createElement('div');
       el.className = 'action-item';
       el.dataset.id = a.id;
+      el.style.cssText = 'background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);';
       const expires = a.expiresAt || '';
 
       el.innerHTML = `
-        <a href="/api/actions/action_card/${a.id}">${escapeHtml(a.text)}</a>
-        <small>
-          Действует до: <span class="expires-iso">${expires || '—'}</span>
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+          <a href="/api/actions/action_card/${a.id}" style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.text)}</a>
+          
+          <select class="republish-duration" style="width: 95px; font-size: 12px; padding: 6px;">
+            <option value="10">+10м</option>
+            <option value="30">+30м</option>
+            <option value="60">+1ч</option>
+          </select>
+          
+          <button type="button" class="republish-btn btn-success" style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+            <i class="fa-solid fa-plus"></i> Продлить
+          </button>
+          
+          <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+        
+        <small style="color: var(--text-secondary); display: block; font-size: 10px; padding-left: 2px;">
+          <i class="fa-solid fa-clock"></i> Действует до: <span class="expires-iso">${expires || '—'}</span>
           ${expires ? `(осталось: <span class="expires-left" data-expires="${expires}"></span>)` : ''}
         </small>
-
-        <select class="republish-duration">
-          <option value="10">+10 мин</option>
-          <option value="30">+30 мин</option>
-          <option value="60">+1 час</option>
-        </select>
-        <button type="button" class="republish-btn" disabled>Опубликовать снова</button>
-
-        <button type="button" class="delete-btn">Удалить</button>
       `;
       publishedBox.appendChild(el);
     }
@@ -129,10 +148,20 @@
       const left = Date.parse(iso) - now;
       span.textContent = fmtLeft(left);
 
-      // включаем/выключаем кнопку «Опубликовать снова»
+      // Меняем текст кнопки в зависимости от состояния
       const item = span.closest('.action-item');
       const btn = item?.querySelector('.republish-btn');
-      if (btn) btn.disabled = left > 0;
+      if (btn) {
+        btn.disabled = false; // Всегда активна!
+        btn.style.opacity = '1'; // Убираем прозрачность
+        if (left > 0) {
+          // Действие активно - кнопка "Продлить"
+          btn.innerHTML = '<i class="fa-solid fa-plus"></i> Продлить';
+        } else {
+          // Действие истекло - кнопка "Опубликовать"
+          btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Опубликовать';
+        }
+      }
     });
   }
 
@@ -199,26 +228,25 @@
     }
 
     if (e.target.classList.contains('republish-btn')) {
-      // защита: если ещё активно — предупреждаем и не шлём запрос
+      // Теперь кнопка работает всегда! Продление или повторная публикация
       const leftSpan = item.querySelector('.expires-left[data-expires]');
       let left = 0;
       if (leftSpan) left = Date.parse(leftSpan.getAttribute('data-expires')) - Date.now();
-      if (left > 0) {
-        notify(`Действие ещё активно. Подождите ${fmtLeft(left)} и попробуйте снова.`, 'info');
-        return;
-      }
 
       const sel = item.querySelector('.republish-duration');
       const duration = Number(sel?.value || 10);
       e.target.disabled = true;
       try {
-        // Используем тот же эндпоинт, что и публикация — чтобы «Наш мир» получил новое активное действие
         await post('/api/my-actions/publish', { id, duration });
-        notify('Опубликовано снова');
+        if (left > 0) {
+          notify('Действие продлено');
+        } else {
+          notify('Опубликовано снова');
+        }
         try { localStorage.setItem('MYA_PING', String(Date.now())); } catch {}
         await refresh();
       } catch {
-        notify('Не удалось переопубликовать', 'error');
+        notify('Не удалось опубликовать', 'error');
       } finally {
         e.target.disabled = false;
       }

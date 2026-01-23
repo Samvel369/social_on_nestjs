@@ -1,27 +1,24 @@
 {% if possible_friends and possible_friends.length %}
   {% for u in possible_friends %}
-    <div class="pf-item potential-item" 
-         data-created="{{ u.timestamp.toISOString() }}"
-         style="display:flex; align-items:center; gap:12px; margin:12px 0; transition: opacity 0.5s;">
-      
-      <img src="{{ u.avatar_url }}" alt="avatar" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
-      
-      <div style="flex:1;">
-          <a href="/profile/{{ u.id }}" style="text-decoration: none; color: inherit;">
-            <strong>{{ u.username }}</strong>
-          </a>
-          <span class="time-ago" style="font-size: 0.8em; color: #999; margin-left: 8px;"></span>
+    <div class="potential-item" data-created="{{ u.timestamp.toISOString() }}">
+      <img src="{{ u.avatar_url }}" alt="avatar" class="avatar">
+      <div class="friend-info">
+        <strong><a href="/profile/{{ u.id }}">{{ u.username }}</a></strong>
+        <span class="time-ago"></span>
       </div>
-
-      <div style="display:flex; gap:8px;">
-        <button type="button" data-action="request" data-user-id="{{ u.id }}">Добавить</button>
-        
-        <button type="button" data-action="subscribe" data-user-id="{{ u.id }}">Подписаться</button>
-        
-        <button type="button" data-action="dismiss" data-user-id="{{ u.id }}">Убрать</button>
+      <div>
+        <button type="button" data-action="request" data-user-id="{{ u.id }}" class="btn-success">
+          <i class="fa-solid fa-user-plus"></i> Добавить
+        </button>
+        <button type="button" data-action="subscribe" data-user-id="{{ u.id }}" class="btn-warning">
+          <i class="fa-solid fa-bell"></i> Подписаться
+        </button>
+        <button type="button" data-action="dismiss" data-user-id="{{ u.id }}" class="btn-danger">
+          <i class="fa-solid fa-eye-slash"></i> Убрать
+        </button>
       </div>
     </div>
   {% endfor %}
 {% else %}
-  <p style="color: #999;">Нет возможных друзей (пока никто не активен).</p>
+  <p style="color: var(--text-muted); text-align: center; padding: 40px;">Нет возможных друзей (пока никто не активен)</p>
 {% endif %}

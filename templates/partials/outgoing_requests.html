@@ -1,13 +1,15 @@
 {% if outgoing_requests and outgoing_requests.length %}
   {% for r in outgoing_requests %}
-    <div data-request-id="{{ r.id }}" style="display:flex;align-items:center;gap:12px;margin:12px 0;">
-      <img src="{{ r.receiver.avatar_url }}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
-      <div style="flex:1 1 auto;">
+    <div class="request-item" data-request-id="{{ r.id }}">
+      <img src="{{ r.receiver.avatar_url }}" alt="avatar" class="avatar">
+      <div class="friend-info">
         <strong><a href="/profile/{{ r.receiver.id }}">{{ r.receiver.username }}</a></strong>
       </div>
-      <button data-action="cancel" data-request-id="{{ r.id }}">Отменить заявку</button>
+      <button data-action="cancel" data-request-id="{{ r.id }}" class="btn-danger">
+        <i class="fa-solid fa-xmark"></i> Отменить
+      </button>
     </div>
   {% endfor %}
 {% else %}
-  <p>Нет исходящих заявок.</p>
+  <p style="color: var(--text-muted); text-align: center; padding: 40px;">Нет исходящих заявок</p>
 {% endif %}
