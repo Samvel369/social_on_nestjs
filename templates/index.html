@@ -46,7 +46,11 @@ function updateTopActions() {
       const list = document.getElementById('top-actions-list');
       
       if (!Array.isArray(data) || data.length === 0) {
-        list.innerHTML = '<li style="text-align: center; color: var(--text-muted);">Нет активных действий</li>';
+        // Проверяем, не показываем ли уже сообщение об отсутствии действий
+        const currentText = list.textContent?.trim();
+        if (currentText !== 'Нет активных действий') {
+          list.innerHTML = '<li style="text-align: center; color: var(--text-muted);">Нет активных действий</li>';
+        }
         return;
       }
 

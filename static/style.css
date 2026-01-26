@@ -82,6 +82,9 @@ body {
     height: 100vh;
     overflow-y: auto;
     transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
 }
 
 .sidebar.collapsed {

@@ -112,7 +112,7 @@
           </select>
           
           <button type="button" class="republish-btn btn-success" style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
-            <i class="fa-solid fa-plus"></i> Продлить
+            <i class="fa-solid fa-plus"></i>
           </button>
           
           <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
@@ -148,17 +148,19 @@
       const left = Date.parse(iso) - now;
       span.textContent = fmtLeft(left);
 
-      // Меняем текст кнопки в зависимости от состояния
+      // Меняем состояние кнопки в зависимости от времени
       const item = span.closest('.action-item');
       const btn = item?.querySelector('.republish-btn');
       if (btn) {
-        btn.disabled = false; // Всегда активна!
-        btn.style.opacity = '1'; // Убираем прозрачность
         if (left > 0) {
-          // Действие активно - кнопка "Продлить"
-          btn.innerHTML = '<i class="fa-solid fa-plus"></i> Продлить';
+          // Действие активно - кнопка НЕАКТИВНА
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          btn.innerHTML = '<i class="fa-solid fa-plus"></i>';
         } else {
-          // Действие истекло - кнопка "Опубликовать"
+          // Действие истекло - кнопка АКТИВНА (опубликовать заново)
+          btn.disabled = false;
+          btn.style.opacity = '1';
           btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Опубликовать';
         }
       }
@@ -228,27 +230,25 @@
     }
 
     if (e.target.classList.contains('republish-btn')) {
-      // Теперь кнопка работает всегда! Продление или повторная публикация
+      // Проверяем, не заблокирована ли кнопка
+      if (e.target.disabled) return;
+
       const leftSpan = item.querySelector('.expires-left[data-expires]');
       let left = 0;
       if (leftSpan) left = Date.parse(leftSpan.getAttribute('data-expires')) - Date.now();
 
       const sel = item.querySelector('.republish-duration');
       const duration = Number(sel?.value || 10);
+      const originalDisabled = e.target.disabled;
       e.target.disabled = true;
       try {
         await post('/api/my-actions/publish', { id, duration });
-        if (left > 0) {
-          notify('Действие продлено');
-        } else {
-          notify('Опубликовано снова');
-        }
+        notify('Опубликовано снова');
         try { localStorage.setItem('MYA_PING', String(Date.now())); } catch {}
         await refresh();
       } catch {
         notify('Не удалось опубликовать', 'error');
-      } finally {
-        e.target.disabled = false;
+        e.target.disabled = originalDisabled;
       }
     }
   });
