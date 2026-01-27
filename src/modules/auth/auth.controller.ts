@@ -26,9 +26,25 @@ export class AuthController {
 
   // ===== API =====
   // Публично: создаёт пользователя
+  @HttpCode(200)
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, user } = await this.auth.register(dto);
+
+    // кладём JWT в HttpOnly-куку для браузерных клиентов
+    res.cookie('token', access_token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    // возвращаем access_token для мобильных клиентов
+    return { ok: true, access_token, user };
   }
 
   // Публично: возвращает JWT и ставит HttpOnly-куку
@@ -38,20 +54,31 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // ожидаем от сервиса { access_token, user }
-    const { access_token, user } = await this.auth.login(dto);
+    console.log('🔐 [AUTH CONTROLLER] Login attempt for:', dto.username);
+    
+    try {
+      // ожидаем от сервиса { access_token, user }
+      const { access_token, user } = await this.auth.login(dto);
 
-    // кладём JWT в HttpOnly-куку, чтобы SSR-страницы под JwtAuthGuard тебя видели
-    res.cookie('token', access_token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false, // включишь true на https
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+      console.log('✅ [AUTH CONTROLLER] Login successful for user:', user.username);
 
-    // фронту достаточно ok+user; редирект делает JS
-    return { ok: true, user };
+      // кладём JWT в HttpOnly-куку, чтобы SSR-страницы под JwtAuthGuard тебя видели
+      res.cookie('token', access_token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false, // включишь true на https
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+
+      // возвращаем access_token для мобильных клиентов + ok для веб-клиентов
+      const response = { ok: true, access_token, user };
+      console.log('✅ [AUTH CONTROLLER] Sending response:', JSON.stringify(response, null, 2));
+      return response;
+    } catch (error: any) {
+      console.error('❌ [AUTH CONTROLLER] Login failed:', error.message);
+      throw error;
+    }
   }
 
   // Приватно: проверить токен и получить текущего пользователя

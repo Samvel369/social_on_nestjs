@@ -39,7 +39,22 @@ export class AuthService {
     const count = await this.prisma.user.count();
     this.rt.broadcastTotalUsers(count);
 
-    return { message: 'Регистрация прошла успешно', user };
+    // 3. Генерируем токен для автоматического входа после регистрации
+    const access_token = await this.jwt.signAsync({
+      sub: user.id,
+      username: user.username,
+    });
+
+    return {
+      message: 'Регистрация прошла успешно',
+      access_token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.lastActive,
+      },
+    };
   }
 
   async login(dto: LoginDto) {

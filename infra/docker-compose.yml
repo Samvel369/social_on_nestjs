@@ -87,7 +87,7 @@ services:
       kafka:
         condition: service_started
     ports:
-      - "5433:3000"               # хотим чтобы API был на localhost:5433
+      - "3000:3000"               # API доступен на localhost:3000 и по IP сети
     working_dir: /app             # СИНХРОННО с WORKDIR в Dockerfile
     volumes:
       - ../:/app                  # монтируем весь проект в /app

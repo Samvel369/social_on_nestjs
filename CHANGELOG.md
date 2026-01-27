@@ -1,5 +1,32 @@
 # 📝 Changelog
 
+## 2026-01-27
+
+### Mobile App - Login Fix
+- **Issue:** Mobile app couldn't connect to backend, "Network Error"
+- **Root cause:** Docker port mapping `5433:3000` → mobile tried `:3000`, but host exposed `:5433`
+- **Fix:** Changed `docker-compose.yml` ports to `3000:3000` for consistent access
+- **Files:** `infra/docker-compose.yml`
+
+### Backend - Mobile API Support
+- **Added:** `access_token` in JSON response for `/api/auth/login` and `/api/auth/register`
+- **Before:** Only set HttpOnly cookie (for web), mobile had no token
+- **After:** Returns `{ ok: true, access_token, user }` for both web + mobile
+- **Added:** Detailed logging in `auth.controller.ts` (login attempts, success/fail)
+- **TypeScript fix:** Added `error: any` type in catch block
+- **Files:** `auth.controller.ts`, `auth.service.ts`
+
+### Mobile App - Debug Logging
+- **Added:** Comprehensive console logging in auth flow
+- **Logs:** API URL, request/response data, error details (network/server/unknown)
+- **UI:** Better error messages in alerts (network vs server errors)
+- **Files:** `src/services/auth.ts`, `src/screens/LoginScreen.tsx` (mobile project)
+
+### Network Access
+- **Setup:** Backend listens on `0.0.0.0:3000` (all interfaces)
+- **Access:** `http://localhost:3000` (web), `http://10.128.105.4:3000` (mobile)
+- **Note:** May require Windows Firewall rule for port 3000 incoming connections
+
 ## 2026-01-24
 
 ### Sidebar Redesign
