@@ -18,6 +18,38 @@ export class FriendsController {
     private readonly prisma: PrismaService
   ) {}
 
+  // 🔥 API для мобильного приложения: все списки в JSON
+  @Get('list')
+  async list(
+    @CurrentUser() u: AuthUser,
+    @Query('keep') keep?: string,
+  ) {
+    const keep_minutes = Math.max(1, parseInt(keep ?? '10') || 10);
+    const [
+      possible_friends,
+      incoming_requests,
+      outgoing_requests,
+      friends,
+      subscribers,
+      subscriptions,
+    ] = await Promise.all([
+      this.service.getPossible(u.userId, keep_minutes),
+      this.service.getIncoming(u.userId),
+      this.service.getOutgoing(u.userId),
+      this.service.getFriends(u.userId),
+      this.service.getSubscribers(u.userId),
+      this.service.getSubscriptions(u.userId),
+    ]);
+    return {
+      possible_friends,
+      incoming_requests,
+      outgoing_requests,
+      friends,
+      subscribers,
+      subscriptions,
+    };
+  }
+
   // 🔥 НОВЫЙ МЕТОД: API для получения количества заявок
   @Get('incoming-count')
   async getIncomingCount(@CurrentUser() u: AuthUser) {

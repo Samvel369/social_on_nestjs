@@ -8,6 +8,7 @@
     let selectionMode = false;
     let selectedMsgIds = new Set();
     let replyingToIds = [];
+    var appendedMessageIds = new Set();
 
     const ctxMenu = document.getElementById('context-menu');
     const ctxTargetIdVal = { current: null }; 
@@ -37,10 +38,15 @@
     function startChatLogic() {
         socket.on('chat:new_message', (msg) => {
             hideTyping(msg.senderId);
-            if (currentReceiverId && msg.senderId === currentReceiverId) {
-                appendMessage(msg, false);
+            var isForCurrentChat = currentReceiverId && (
+                msg.senderId === currentReceiverId ||
+                (msg.senderId === window.CURRENT_USER_ID && msg.receiverId === currentReceiverId)
+            );
+            if (isForCurrentChat) {
+                var isOwn = msg.senderId === window.CURRENT_USER_ID;
+                appendMessage(msg, isOwn);
                 scrollToBottom();
-                markAsRead(currentReceiverId);
+                if (!isOwn) markAsRead(currentReceiverId);
             } else {
                 updateContactBadge(msg.senderId);
             }
@@ -320,7 +326,8 @@
         try {
             const res = await fetch(`/api/chat/history/${friendId}`);
             const messages = await res.json();
-            area.innerHTML = ''; 
+            area.innerHTML = '';
+            appendedMessageIds.clear();
             messages.forEach(msg => appendMessage(msg, msg.senderId === window.CURRENT_USER_ID));
             scrollToBottom();
         } catch (e) {
@@ -329,6 +336,8 @@
     };
 
     function appendMessage(msg, isMine) {
+        if (appendedMessageIds.has(msg.id)) return;
+        appendedMessageIds.add(msg.id);
         const area = document.getElementById('messages-area');
         const container = document.createElement('div');
         container.className = `msg-container ${isMine ? 'mine' : 'theirs'}`;

@@ -15,6 +15,12 @@ export class ChatController {
     private readonly prisma: PrismaService
   ) {}
 
+  /** API для мобильного приложения: список контактов (друзья с последним сообщением и счётчиком непрочитанных) */
+  @Get('contacts')
+  async getContactsJson(@CurrentUser() user: { userId: number }) {
+    return this.service.getContacts(user.userId);
+  }
+
   @Get()
   @Render('chat.html')
   async viewChat(@CurrentUser() user: { userId: number }) {

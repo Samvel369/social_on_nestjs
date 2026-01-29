@@ -38,6 +38,7 @@ export class ChatService {
     const eventData = {
       id: msg.id,
       senderId,
+      receiverId,
       content,
       createdAt: msg.createdAt,
       isEdited: false,
