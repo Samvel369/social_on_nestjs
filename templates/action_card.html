@@ -2,7 +2,7 @@
 {% block title %}Карточка действия{% endblock %}
 
 {% block content %}
-<div class="card-container">
+<div class="card-container" data-action-id="{{ action.id if action else '' }}">
   <h2>Карточка действия</h2>
 
   {% if action %}
@@ -51,9 +51,12 @@
 </div>
 
 <script>
-  // ID действия для JS
-  const actionId = {{ action and action.id or 'null' }};
-  
+  const actionId = (function() {
+    const el = document.querySelector('.card-container[data-action-id]');
+    const id = el && el.getAttribute('data-action-id');
+    return id ? parseInt(id, 10) : null;
+  })();
+
   function updateStats() {
     if (actionId === null) return;
     fetch(`/api/actions/action_stats/${actionId}`)
