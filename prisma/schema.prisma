@@ -45,6 +45,9 @@ model User {
   
   // Реакции пользователя
   reactions             MessageReaction[]
+
+  // Отметки в ежедневных действиях
+  dailyActionMarks      DailyActionMark[]
 }
 
 model Action {
@@ -179,4 +182,27 @@ model MessageReaction {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
+}
+
+// ---------- Ежедневные действия (фиксированный список, сброс каждую минуту) ----------
+
+model DailyAction {
+  id        Int      @id @default(autoincrement())
+  text      String   @db.VarChar(255)
+  sortOrder Int      @default(0)
+
+  marks DailyActionMark[]
+}
+
+model DailyActionMark {
+  id            Int      @id @default(autoincrement())
+  dailyActionId Int
+  userId        Int
+  createdAt     DateTime @default(now()) // Момент постановки отметки — живёт ровно 1 минуту
+
+  dailyAction DailyAction @relation(fields: [dailyActionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dailyActionId, userId])
+  @@index([dailyActionId, createdAt])
 }

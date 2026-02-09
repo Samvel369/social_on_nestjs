@@ -34,6 +34,99 @@ function markAction(actionId) {
 }
 window.markAction = markAction;
 
+// ---------- ежедневные действия (каждая отметка живёт 1 мин с момента постановки) ----------
+function updateDailyCounters(counts) {
+  if (!counts || typeof counts !== 'object') return;
+  Object.entries(counts).forEach(([id, cnt]) => {
+    const el = document.getElementById(`daily-counter-${id}`);
+    if (el) el.textContent = cnt;
+  });
+}
+window.updateDailyCounters = updateDailyCounters;
+
+function refreshDailyActions() {
+  fetch('/api/world/daily-actions', withCreds())
+    .then((r) => r.json())
+    .then((list) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((a) => {
+        const el = document.getElementById(`daily-counter-${a.id}`);
+        if (el) el.textContent = a.count;
+      });
+    })
+    .catch(() => {});
+}
+window.refreshDailyActions = refreshDailyActions;
+
+function showCooldownModal(msg, remainingSeconds) {
+  let secondsLeft = Math.max(0, Math.ceil(remainingSeconds));
+  let timerId = null;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'daily-mark-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg-card,#fff);padding:24px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center;min-width:260px;';
+  box.innerHTML = `
+    <p style="margin:0 0 12px;font-weight:600;font-size:18px;color:var(--accent-moment,#e74c3c);">Подождите</p>
+    <p style="margin:0 0 8px;font-size:14px;color:var(--text-secondary,#666);">${msg}</p>
+    <p style="margin:0 0 16px;font-size:20px;font-weight:700;color:var(--accent-pulse,#f39c12);"><span id="daily-mark-remaining">0:00</span></p>
+    <button type="button" id="daily-mark-modal-ok" style="padding:10px 24px;font-size:14px;cursor:pointer;background:var(--accent-primary,#8b6f47);color:#fff;border:none;border-radius:8px;">Ок</button>
+  `;
+
+  const remainingEl = box.querySelector('#daily-mark-remaining');
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  function tick() {
+    remainingEl.textContent = formatTime(secondsLeft);
+    if (secondsLeft <= 0) {
+      clearInterval(timerId);
+      return;
+    }
+    secondsLeft--;
+  }
+
+  tick();
+  if (secondsLeft > 0) timerId = setInterval(tick, 1000);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  function close() {
+    if (timerId) clearInterval(timerId);
+    overlay.remove();
+  }
+
+  box.querySelector('#daily-mark-modal-ok').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
+function markDailyAction(dailyActionId) {
+  fetch(`/api/world/daily-mark/${dailyActionId}`, withCreds({ method: 'POST' }))
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.success) {
+        if (data.counts) updateDailyCounters(data.counts);
+        const list = document.getElementById('daily-actions-list');
+        const item = list?.querySelector(`[data-daily-id="${dailyActionId}"]`);
+        if (list && item) {
+          item.remove();
+          list.insertBefore(item, list.firstChild);
+        }
+        refreshDailyActions();
+      } else if (data?.error) {
+        if (typeof data.remaining === 'number' && data.remaining > 0) {
+          showCooldownModal('Подождите 10 минут перед следующей отметкой на это действие', data.remaining);
+        } else {
+          notify(data.error, 'error');
+        }
+      }
+    })
+    .catch(() => notify('Ошибка сети', 'error'));
+}
+window.markDailyAction = markDailyAction;
+
 function updateCounters() {
   fetch('/api/actions/get_mark_counts', withCreds())
     .then((r) => r.json())
@@ -260,11 +353,38 @@ document.addEventListener('click', (e) => {
     const form = publishBtn.closest('form.world-publish');
     if (form) publishFromForm(form);
   }
+  const dailyMarkBtn = e.target.closest('.daily-mark-btn');
+  if (dailyMarkBtn) {
+    const id = dailyMarkBtn.getAttribute('data-daily-id');
+    if (id) markDailyAction(Number(id));
+    return;
+  }
+  const publishedMarkBtn = e.target.closest('.published-mark-btn');
+  if (publishedMarkBtn) {
+    const id = publishedMarkBtn.getAttribute('data-action-id');
+    if (id) markAction(Number(id));
+  }
 });
 
-// ---------- автообновление опубликованных ----------
+// ---------- поиск ежедневных действий ----------
+document.addEventListener('input', (e) => {
+  const search = document.getElementById('daily-actions-search');
+  if (e.target !== search) return;
+  const q = (search?.value || '').trim().toLowerCase();
+  const list = document.getElementById('daily-actions-list');
+  if (!list) return;
+  list.querySelectorAll('.daily-action-row').forEach((li) => {
+    const textEl = li.querySelector('span');
+    const text = (textEl?.textContent || '').toLowerCase();
+    li.style.display = q === '' || text.includes(q) ? '' : 'none';
+  });
+});
+
+// ---------- автообновление ----------
 refreshPublished();
 updateCounters();
+refreshDailyActions();
 setInterval(refreshPublished, 1000);
 setInterval(updateCounters, 1000);
+setInterval(refreshDailyActions, 5000); // Каждая отметка живёт 1 мин — опрос каждые 5 сек для обновления
 // ---------- /static/js/world.js ----------

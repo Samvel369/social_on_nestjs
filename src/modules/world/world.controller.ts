@@ -22,7 +22,7 @@ import { getDisplayName } from '../../common/utils/user.utils';
 export class WorldController {
   constructor(
     private readonly service: WorldService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   // 🔥 МОДИФИЦИРОВАННЫЙ МЕТОД: API для получения количества НЕПРОСМОТРЕННЫХ активных действий
@@ -53,7 +53,7 @@ export class WorldController {
       avatar_url: me.avatarUrl ?? '',
     } : null;
 
-    const daily_actions: any[] = [];
+    const daily_actions = await this.service.getDailyActions(user.userId);
     const published: any[] = [];
     const drafts: any[] = [];
 
@@ -63,6 +63,17 @@ export class WorldController {
       published,
       drafts,
     };
+  }
+
+  // ===== Ежедневные действия (API) =====
+  @Get('daily-actions')
+  async getDailyActions(@CurrentUser() user: AuthUser) {
+    return this.service.getDailyActions(user.userId);
+  }
+
+  @Post('daily-mark/:id')
+  async markDaily(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    return this.service.markDailyAction(user.userId, id);
   }
 
   // ===== JSON API =====

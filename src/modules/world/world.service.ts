@@ -164,4 +164,109 @@ export class WorldService {
     for (const m of recent) counts[m.actionId] = (counts[m.actionId] || 0) + 1;
     return counts;
   }
+
+  // ---------- Ежедневные действия (каждая отметка живёт 1 мин с момента постановки) ----------
+
+  private getOneMinuteAgo(): Date {
+    return new Date(Date.now() - 60 * 1000);
+  }
+
+  async getDailyActions(userId?: number): Promise<{ id: number; text: string; sortOrder: number; count: number }[]> {
+    try {
+      const oneMinuteAgo = this.getOneMinuteAgo();
+      const [actions, marks, userMarks] = await Promise.all([
+        this.prisma.dailyAction.findMany({
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, text: true, sortOrder: true },
+        }),
+        this.prisma.dailyActionMark.findMany({
+          where: { createdAt: { gt: oneMinuteAgo } },
+          select: { dailyActionId: true },
+        }),
+        userId
+          ? this.prisma.dailyActionMark.findMany({
+              where: { userId },
+              orderBy: { createdAt: 'desc' },
+              select: { dailyActionId: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const countMap = new Map<number, number>();
+      for (const m of marks) {
+        countMap.set(m.dailyActionId, (countMap.get(m.dailyActionId) ?? 0) + 1);
+      }
+
+      const base = actions.map((a) => ({
+        id: a.id,
+        text: a.text,
+        sortOrder: a.sortOrder,
+        count: countMap.get(a.id) ?? 0,
+      }));
+
+      if (userId && userMarks.length > 0) {
+        const seen = new Set<number>();
+        const order: number[] = [];
+        for (const m of userMarks) {
+          if (!seen.has(m.dailyActionId)) {
+            seen.add(m.dailyActionId);
+            order.push(m.dailyActionId);
+          }
+        }
+        const orderById = new Map(order.map((id, i) => [id, i]));
+        const marked = base.filter((a) => seen.has(a.id));
+        const unmarked = base.filter((a) => !seen.has(a.id));
+        marked.sort((a, b) => (orderById.get(a.id) ?? 999) - (orderById.get(b.id) ?? 999));
+        return [...marked, ...unmarked];
+      }
+      return base;
+    } catch (e) {
+      console.error('[getDailyActions]', e);
+      return [];
+    }
+  }
+
+  /** Защита от спама: не чаще 1 раза в 10 минут на одно действие */
+  private readonly DAILY_MARK_COOLDOWN_MS = 10 * 60 * 1000;
+
+  async markDailyAction(userId: number, dailyActionId: number): Promise<{ success: boolean; counts?: Record<number, number>; error?: string; remaining?: number }> {
+    const now = new Date();
+    const tenMinutesAgo = new Date(now.getTime() - this.DAILY_MARK_COOLDOWN_MS);
+
+    const action = await this.prisma.dailyAction.findUnique({ where: { id: dailyActionId }, select: { id: true } });
+    if (!action) return { success: false, error: 'Действие не найдено' };
+
+    const existing = await this.prisma.dailyActionMark.findUnique({
+      where: { dailyActionId_userId: { dailyActionId, userId } },
+      select: { createdAt: true },
+    });
+
+    if (existing && existing.createdAt > tenMinutesAgo) {
+      const remaining = Math.ceil((existing.createdAt.getTime() + this.DAILY_MARK_COOLDOWN_MS - now.getTime()) / 1000);
+      return { success: false, error: 'Подождите 10 минут перед следующей отметкой на это действие', remaining };
+    }
+
+    await this.prisma.dailyActionMark.upsert({
+      where: { dailyActionId_userId: { dailyActionId, userId } },
+      update: { createdAt: now },
+      create: { dailyActionId, userId, createdAt: now },
+    });
+
+    const counts = await this.getDailyCountsMap();
+    this.rt.emitToAll('daily:counts_update', { counts });
+    return { success: true, counts };
+  }
+
+  private async getDailyCountsMap(): Promise<Record<number, number>> {
+    const oneMinuteAgo = this.getOneMinuteAgo();
+    const marks = await this.prisma.dailyActionMark.findMany({
+      where: { createdAt: { gt: oneMinuteAgo } },
+      select: { dailyActionId: true },
+    });
+    const counts: Record<number, number> = {};
+    for (const m of marks) {
+      counts[m.dailyActionId] = (counts[m.dailyActionId] ?? 0) + 1;
+    }
+    return counts;
+  }
 }

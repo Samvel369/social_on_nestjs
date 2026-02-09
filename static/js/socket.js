@@ -81,6 +81,14 @@
         window.updateWorldBadge();
       }
     });
+
+    // Ежедневные действия: обновление счётчиков в реальном времени
+    socket.off('daily:counts_update');
+    socket.on('daily:counts_update', (data) => {
+      if (typeof window.updateDailyCounters === 'function' && data && data.counts) {
+        window.updateDailyCounters(data.counts);
+      }
+    });
   }
   document.addEventListener('DOMContentLoaded', initSocket);
 })();

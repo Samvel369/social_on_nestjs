@@ -32,27 +32,32 @@
         <i class="fa-solid fa-clock" style="color: var(--accent-pulse);"></i>
         Ежедневные действия
       </h3>
+      <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+        Каждая отметка живёт ровно 1 минуту с момента постановки. Отметьтесь и увидьте, кто делает то же самое прямо сейчас.
+      </p>
+
+      <input type="text" id="daily-actions-search" placeholder="Поиск действия..." style="width: 100%; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); box-sizing: border-box;" />
 
       {% if daily_actions and daily_actions.length %}
-        <ul style="list-style: none; padding: 0;">
+        <div id="daily-actions-scroll" style="max-height: 420px; overflow-y: auto;">
+        <ul id="daily-actions-list" style="list-style: none; padding: 0; margin: 0;">
           {% for action in daily_actions %}
-            <li data-id="{{ action.id }}" style="padding: 16px; margin: 12px 0; background: rgba(243, 156, 18, 0.05); border-left: 4px solid var(--accent-pulse); border-radius: var(--radius-sm); transition: all 0.3s ease;">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px;">
-                <a href="/api/actions/action_card/{{ action.id }}" target="_blank" style="flex: 1; font-weight: 600;">
-                  {{ action.text }}
-                </a>
-                <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
-                  <span id="counter-{{ action.id }}">0</span> чел.
-                </span>
+            <li data-daily-id="{{ action.id }}" class="daily-action-row" style="padding: 12px 16px; margin: 12px 0; background: rgba(243, 156, 18, 0.05); border-left: 4px solid var(--accent-pulse); border-radius: var(--radius-sm); transition: all 0.3s ease;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: nowrap;">
+                <span style="flex: 1; font-weight: 600; min-width: 0;">{{ action.text }}</span>
+                <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+                  <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
+                    <span id="daily-counter-{{ action.id }}">{{ action.count }}</span>
+                  </span>
+                  <button type="button" class="daily-mark-btn" data-daily-id="{{ action.id }}" style="width: auto; padding: 6px 12px; white-space: nowrap;">
+                    <i class="fa-solid fa-check"></i> Отметиться
+                  </button>
+                </div>
               </div>
-              <button type="button" onclick="markAction({{ action.id }})" style="width: 100%;">
-                <i class="fa-solid fa-check"></i> Отметиться
-              </button>
-              <div id="message-{{ action.id }}" class="msg" style="margin-top: 8px; font-size: 14px;"></div>
-              <span id="cooldown-{{ action.id }}" style="display:none;"></span>
             </li>
           {% endfor %}
         </ul>
+        </div>
       {% else %}
         <p style="color: var(--text-muted); text-align: center; padding: 40px;">Нет ежедневных действий</p>
       {% endif %}
@@ -80,7 +85,7 @@
                   <span id="counter-{{ action.id }}">0</span> чел.
                 </span>
               </div>
-              <button type="button" onclick="markAction({{ action.id }})" style="width: 100%;">
+              <button type="button" class="published-mark-btn" data-action-id="{{ action.id }}" style="width: 100%;">
                 <i class="fa-solid fa-check"></i> Отметиться
               </button>
               <div id="message-{{ action.id }}" class="msg" style="margin-top: 8px; font-size: 14px;"></div>
