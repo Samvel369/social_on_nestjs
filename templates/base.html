@@ -298,8 +298,11 @@
 
             document.addEventListener('DOMContentLoaded', () => {
                 updateMsgBadgeCount();
-                updateFriendsBadgeCount();
-                updateWorldBadgeCount(); // Вызываем при загрузке страницы
+                // updateFriendsBadgeCount(); // Данные с сервера
+
+                if (window.location.pathname.startsWith('/api/world/view')) {
+                    updateWorldBadgeCount();
+                }
 
                 // Получаем socket из window.socket (который создается в socket.js)
                 // Используем задержку, чтобы socket.js успел инициализироваться

@@ -1184,3 +1184,8 @@ a:hover {
 .gap-24 {
     gap: 24px;
 }
+
+/* Утилита для скрытия элементов */
+.hidden {
+    display: none !important;
+}
