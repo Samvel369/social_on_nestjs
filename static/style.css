@@ -4,40 +4,53 @@
 
 :root {
     /* Фоны - тёплые, бежевые */
-    --bg-primary: #f5f3f0;           /* Светлый бежевый */
-    --bg-secondary: #faf8f5;         /* Очень светлый бежевый */
-    --bg-card: #ffffff;              /* Белый для карточек */
-    --bg-hover: #ede8e3;             /* Hover состояние */
-    
+    --bg-primary: #f5f3f0;
+    /* Светлый бежевый */
+    --bg-secondary: #faf8f5;
+    /* Очень светлый бежевый */
+    --bg-card: #ffffff;
+    /* Белый для карточек */
+    --bg-hover: #ede8e3;
+    /* Hover состояние */
+
     /* Акценты - коричневые, тёплые */
-    --accent-primary: #8b6f47;       /* Коричневый (связь) */
-    --accent-secondary: #a58968;     /* Светло-коричневый */
-    --accent-connection: #5fa777;    /* Зелёный (соединение) */
-    --accent-moment: #e74c3c;        /* Красный (момент) */
-    --accent-pulse: #f39c12;         /* Оранжевый (пульсация) */
-    --accent-success: #27ae60;       /* Зелёный (успех) */
-    
+    --accent-primary: #8b6f47;
+    /* Коричневый (связь) */
+    --accent-secondary: #a58968;
+    /* Светло-коричневый */
+    --accent-connection: #5fa777;
+    /* Зелёный (соединение) */
+    --accent-moment: #e74c3c;
+    /* Красный (момент) */
+    --accent-pulse: #f39c12;
+    /* Оранжевый (пульсация) */
+    --accent-success: #27ae60;
+    /* Зелёный (успех) */
+
     /* Текст */
-    --text-primary: #3e2723;         /* Тёмно-коричневый */
-    --text-secondary: #6d4c41;       /* Средний коричневый */
-    --text-muted: #8d6e63;           /* Приглушённый коричневый */
-    
+    --text-primary: #3e2723;
+    /* Тёмно-коричневый */
+    --text-secondary: #6d4c41;
+    /* Средний коричневый */
+    --text-muted: #8d6e63;
+    /* Приглушённый коричневый */
+
     /* Тени - мягкие */
     --shadow-sm: 0 2px 8px rgba(139, 111, 71, 0.1);
     --shadow-md: 0 4px 16px rgba(139, 111, 71, 0.15);
     --shadow-lg: 0 8px 32px rgba(139, 111, 71, 0.2);
     --shadow-glow: 0 0 20px rgba(139, 111, 71, 0.3);
-    
+
     /* Границы */
     --border-color: rgba(139, 111, 71, 0.2);
     --border-glow: rgba(139, 111, 71, 0.4);
-    
+
     /* Радиусы */
     --radius-sm: 8px;
     --radius-md: 16px;
     --radius-lg: 24px;
     --radius-full: 9999px;
-    
+
     /* Шрифты */
     --font-primary: 'Inter', 'Segoe UI', system-ui, sans-serif;
     --font-display: 'Poppins', 'Segoe UI', sans-serif;
@@ -74,7 +87,8 @@ body {
 /* ===== 🎯 SIDEBAR (Левое меню) ===== */
 .sidebar {
     width: 280px;
-    padding: 32px 20px;
+    padding: 20px;
+    /* Было 32px 20px. Ставим 20px, чтобы не прыгало при сворачивании */
     background: #faf8f5;
     border-right: 2px solid var(--border-color);
     position: sticky;
@@ -89,41 +103,68 @@ body {
 
 .sidebar.collapsed {
     width: 70px;
-    padding: 20px 5px;
+    padding: 20px 10px;
+    /* Чуть больше отступ сбоку для центровки */
 }
 
+/* Кнопка меню (сэндвич) */
 .menu-toggle-btn {
-    background: none;
+    background: transparent;
     border: none;
-    font-size: 22px;
+    outline: none;
+    /* Убираем обводку при фокусе */
+    font-size: 24px;
+    /* Чуть крупнее */
     color: var(--accent-primary);
     cursor: pointer;
+
+    /* Фиксированная высота и отступы, чтобы не прыгала */
+    height: 40px;
+    width: 40px;
     margin-bottom: 20px;
-    padding: 8px;
+    padding: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
     border-radius: var(--radius-sm);
     transition: all 0.3s ease;
-    width: 100%;
-    text-align: left;
 }
 
 .menu-toggle-btn:hover {
-    background: rgba(52, 152, 219, 0.1);
+    background: rgba(139, 111, 71, 0.1);
     color: var(--accent-secondary);
 }
 
-.sidebar.collapsed .menu-toggle-btn {
-    text-align: center;
-    padding: 8px 0;
+.menu-toggle-btn:focus {
+    outline: none;
+    box-shadow: none;
+    /* Убираем тень/свечение при клике */
 }
 
+/* В свернутом состоянии просто центрируем, отступы те же */
+.sidebar.collapsed .menu-toggle-btn {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+
+/* Информация о пользователе */
 /* Информация о пользователе */
 .user-info {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* Выравнивание по левому краю (было center) */
     margin-bottom: 24px;
-    padding: 16px;
-    background: var(--bg-card);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-color);
+    padding: 10px 0 10px 18px;
+    /* Добавляем отступ слева, чтобы было на уровне с меню */
+    /* Убираем рамку и фон */
+    background: transparent;
+    border: none;
+    box-shadow: none;
     transition: all 0.3s ease;
 }
 
@@ -131,10 +172,13 @@ body {
     width: 60px;
     height: 60px;
     border-radius: var(--radius-full);
-    border: 3px solid var(--accent-primary);
+    border: none;
+    /* Убираем рамку у самой аватарки тоже */
     margin-bottom: 8px;
     transition: all 0.3s ease;
     object-fit: cover;
+    box-shadow: var(--shadow-sm);
+    /* Оставляем легкую тень для объема */
 }
 
 .user-name {
@@ -150,6 +194,8 @@ body {
 
 .sidebar.collapsed .user-info {
     padding: 10px 5px;
+    align-items: center;
+    /* В свернутом виде центрируем */
 }
 
 .sidebar.collapsed .user-avatar {
@@ -164,7 +210,7 @@ body {
 }
 
 .sidebar li {
-    margin: 4px 0;
+    margin: 2px 0;
 }
 
 .sidebar a {
@@ -259,22 +305,19 @@ body {
 }
 
 @keyframes badge-pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
 }
 
 /* Кнопка выхода */
-.sidebar a[href*="logout"] {
-    margin-top: auto;
-    color: var(--accent-moment);
-    border: 2px solid var(--accent-moment);
-    background: rgba(231, 76, 60, 0.05);
-}
-
-.sidebar a[href*="logout"]:hover {
-    background: var(--accent-moment);
-    color: white;
-}
+/* Кнопка выхода - теперь как обычная ссылка, стили удалены */
 
 /* ===== 📊 SIDEBAR-RIGHT (Статистика) ===== */
 .sidebar-right {
@@ -343,7 +386,12 @@ body {
 }
 
 /* Заголовки */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: var(--font-display);
     color: var(--text-primary);
     font-weight: 700;
@@ -384,7 +432,9 @@ hr {
 }
 
 /* ===== 🎨 ФОРМЫ ===== */
-input, select, textarea {
+input,
+select,
+textarea {
     width: 100%;
     padding: 14px 18px;
     background: var(--bg-card);
@@ -397,13 +447,16 @@ input, select, textarea {
     box-shadow: var(--shadow-sm);
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 0 0 4px rgba(139, 111, 71, 0.1);
 }
 
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
     color: var(--text-muted);
 }
 
@@ -418,7 +471,8 @@ label {
 }
 
 /* ===== 🔘 КНОПКИ ===== */
-button, .btn {
+button,
+.btn {
     padding: 14px 28px;
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
     color: white;
@@ -432,20 +486,24 @@ button, .btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 4px 12px rgba(139, 111, 71, 0.3);
 }
 
-button:hover, .btn:hover {
+button:hover,
+.btn:hover {
     transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+    box-shadow: 0 6px 20px rgba(139, 111, 71, 0.4);
 }
 
-button:active, .btn:active {
+button:active,
+.btn:active {
     transform: translateY(-1px);
 }
 
 /* Типы кнопок */
-.btn-success, button[data-action="accept"], button[data-action="request"] {
+.btn-success,
+button[data-action="accept"],
+button[data-action="request"] {
     background: linear-gradient(135deg, var(--accent-success), #2ecc71) !important;
     box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3) !important;
 }
@@ -454,14 +512,19 @@ button:active, .btn:active {
     box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4) !important;
 }
 
-.btn-warning, button[data-action="subscribe"], button[data-action="leave-subscriber"] {
+.btn-warning,
+button[data-action="subscribe"],
+button[data-action="leave-subscriber"] {
     background: linear-gradient(135deg, var(--accent-pulse), #f1c40f) !important;
     color: white !important;
     box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3) !important;
 }
 
-.btn-danger, button[data-action="cancel"], button[data-action="dismiss"], 
-button[data-action="remove-friend"], button[data-action="unsubscribe"],
+.btn-danger,
+button[data-action="cancel"],
+button[data-action="dismiss"],
+button[data-action="remove-friend"],
+button[data-action="unsubscribe"],
 .delete-btn {
     background: linear-gradient(135deg, var(--accent-moment), #c0392b) !important;
     box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3) !important;
@@ -474,22 +537,23 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 
 .tabs-header {
     display: flex;
-    gap: 8px;
-    border-bottom: 3px solid var(--border-color);
+    gap: 4px;
+    border-bottom: 2px solid var(--border-color);
     margin-bottom: 32px;
     overflow-x: auto;
     scrollbar-width: thin;
-    background: var(--bg-card);
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
     padding: 8px 8px 0 8px;
-    box-shadow: var(--shadow-sm);
+    /* Убираем фон и тени у контейнера, чтобы вкладки "торчали" */
+    background: transparent;
+    box-shadow: none;
 }
 
 .tab-button {
-    padding: 16px 24px;
-    background: transparent;
-    border: none;
-    border-bottom: 3px solid transparent;
+    padding: 14px 24px;
+    /* Неактивная вкладка: темнее, "в глубине" */
+    background: rgba(139, 111, 71, 0.08);
+    border: 2px solid transparent;
+    border-bottom: none;
     color: var(--text-secondary);
     font-weight: 600;
     font-size: 15px;
@@ -499,18 +563,37 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
     display: flex;
     align-items: center;
     gap: 10px;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    position: relative;
+    top: 2px;
+    /* Чуть опущены */
 }
 
 .tab-button:hover {
-    background: var(--bg-hover);
+    background: rgba(139, 111, 71, 0.15);
     color: var(--text-primary);
 }
 
 .tab-button.active {
+    /* Активная вкладка: светлая, "сверху". 
+       ВАЖНО: border-bottom совпадает с фоном контейнера (var(--bg-card) или белый),
+       чтобы визуально "стереть" линию */
+    background: var(--bg-card);
+    /* Белый */
     color: var(--accent-primary);
-    border-bottom-color: var(--accent-primary);
-    background: rgba(52, 152, 219, 0.05);
+
+    border: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--bg-card);
+    /* Сливаем с контентом снизу */
+
+    margin-bottom: -2px;
+    /* Наезжаем на линию */
+    padding-top: 16px;
+    top: 0;
+
+    z-index: 10;
+    /* Поднимаем выше линии контейнера */
+    box-shadow: 0 -4px 12px rgba(139, 111, 71, 0.1);
 }
 
 .tab-button i {
@@ -527,12 +610,22 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ===== 👥 КАРТОЧКИ ПОЛЬЗОВАТЕЛЕЙ ===== */
-.friend-item, .potential-item, .request-item, .subscriber-item {
+.friend-item,
+.potential-item,
+.request-item,
+.subscriber-item {
     display: flex;
     align-items: center;
     gap: 20px;
@@ -547,8 +640,10 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
     box-shadow: var(--shadow-sm);
 }
 
-.friend-item::before, .potential-item::before, 
-.request-item::before, .subscriber-item::before {
+.friend-item::before,
+.potential-item::before,
+.request-item::before,
+.subscriber-item::before {
     content: '';
     position: absolute;
     left: 0;
@@ -560,15 +655,19 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
     transition: transform 0.3s ease;
 }
 
-.friend-item:hover, .potential-item:hover,
-.request-item:hover, .subscriber-item:hover {
+.friend-item:hover,
+.potential-item:hover,
+.request-item:hover,
+.subscriber-item:hover {
     transform: translateX(8px);
     border-color: var(--accent-primary);
     box-shadow: var(--shadow-md);
 }
 
-.friend-item:hover::before, .potential-item:hover::before,
-.request-item:hover::before, .subscriber-item:hover::before {
+.friend-item:hover::before,
+.potential-item:hover::before,
+.request-item:hover::before,
+.subscriber-item:hover::before {
     transform: scaleY(1);
 }
 
@@ -622,17 +721,19 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 }
 
 /* Группа кнопок */
-.friend-item > div:last-child,
-.potential-item > div:last-child,
-.request-item > div:last-child,
-.subscriber-item > div:last-child {
+.friend-item>div:last-child,
+.potential-item>div:last-child,
+.request-item>div:last-child,
+.subscriber-item>div:last-child {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.friend-item button, .potential-item button,
-.request-item button, .subscriber-item button {
+.friend-item button,
+.potential-item button,
+.request-item button,
+.subscriber-item button {
     padding: 10px 20px;
     font-size: 14px;
 }
@@ -674,9 +775,17 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
     font-size: 24px;
 }
 
-.column h3:has(.fa-clock) i { color: var(--accent-pulse); }
-.column h3:has(.fa-fire) i { color: var(--accent-moment); }
-.column h3:has(.fa-plus-circle) i { color: var(--accent-connection); }
+.column h3:has(.fa-clock) i {
+    color: var(--accent-pulse);
+}
+
+.column h3:has(.fa-fire) i {
+    color: var(--accent-moment);
+}
+
+.column h3:has(.fa-plus-circle) i {
+    color: var(--accent-connection);
+}
 
 .column ul {
     list-style: none;
@@ -685,7 +794,7 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 .column li {
     padding: 16px;
     margin: 12px 0;
-    background: rgba(52, 152, 219, 0.05);
+    background: rgba(139, 111, 71, 0.05);
     border-left: 4px solid var(--accent-primary);
     border-radius: var(--radius-sm);
     transition: all 0.3s ease;
@@ -704,13 +813,20 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 }
 
 @keyframes pulse-border {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 .column li:hover {
     transform: translateX(8px);
-    background: rgba(52, 152, 219, 0.1);
+    background: rgba(139, 111, 71, 0.1);
     box-shadow: var(--shadow-sm);
 }
 
@@ -765,8 +881,15 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 }
 
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ===== 🌟 WORLD PULSE (Планета) ===== */
@@ -817,32 +940,46 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 }
 
 @keyframes pulseRing {
-    0% { transform: scale(0.8); opacity: 1; }
-    100% { transform: scale(2); opacity: 0; }
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
 }
 
 /* ===== 📱 RESPONSIVE ===== */
 @media (max-width: 1000px) {
-    .sidebar-right { display: none; }
+    .sidebar-right {
+        display: none;
+    }
 }
 
 @media (max-width: 768px) {
-    .container { flex-direction: column; }
-    .sidebar { 
-        width: 100%; 
+    .container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
         height: auto;
         position: relative;
     }
+
     .world-columns {
         grid-template-columns: 1fr;
     }
+
     .tabs-header {
         flex-wrap: nowrap;
         overflow-x: auto;
     }
-    
+
     /* World page: 70/30 columns to single column on mobile */
-    #tab-happening > div {
+    #tab-happening>div {
         grid-template-columns: 1fr !important;
     }
 }
@@ -868,12 +1005,19 @@ button[data-action="remove-friend"], button[data-action="unsubscribe"],
 
 /* ===== ✨ ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ===== */
 @keyframes pulse-gradient {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
 }
 
 /* Плавное появление контента */
-.content > * {
+.content>* {
     animation: fadeIn 0.6s ease;
 }
 
@@ -911,8 +1055,15 @@ a:hover {
 }
 
 @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ===== 🎨 СПЕЦИФИЧНЫЕ СТИЛИ СТРАНИЦ ===== */
@@ -962,22 +1113,74 @@ a:hover {
 }
 
 /* Дополнительные утилиты */
-.text-center { text-align: center; }
-.text-muted { color: var(--text-muted); }
-.text-primary { color: var(--accent-primary); }
-.text-connection { color: var(--accent-connection); }
-.text-moment { color: var(--accent-moment); }
+.text-center {
+    text-align: center;
+}
 
-.mb-16 { margin-bottom: 16px; }
-.mb-24 { margin-bottom: 24px; }
-.mb-32 { margin-bottom: 32px; }
-.mt-16 { margin-top: 16px; }
-.mt-24 { margin-top: 24px; }
-.mt-32 { margin-top: 32px; }
+.text-muted {
+    color: var(--text-muted);
+}
 
-.flex { display: flex; }
-.flex-center { display: flex; align-items: center; justify-content: center; }
-.flex-between { display: flex; align-items: center; justify-content: space-between; }
-.gap-8 { gap: 8px; }
-.gap-16 { gap: 16px; }
-.gap-24 { gap: 24px; }
+.text-primary {
+    color: var(--accent-primary);
+}
+
+.text-connection {
+    color: var(--accent-connection);
+}
+
+.text-moment {
+    color: var(--accent-moment);
+}
+
+.mb-16 {
+    margin-bottom: 16px;
+}
+
+.mb-24 {
+    margin-bottom: 24px;
+}
+
+.mb-32 {
+    margin-bottom: 32px;
+}
+
+.mt-16 {
+    margin-top: 16px;
+}
+
+.mt-24 {
+    margin-top: 24px;
+}
+
+.mt-32 {
+    margin-top: 32px;
+}
+
+.flex {
+    display: flex;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.gap-8 {
+    gap: 8px;
+}
+
+.gap-16 {
+    gap: 16px;
+}
+
+.gap-24 {
+    gap: 24px;
+}

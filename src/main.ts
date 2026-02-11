@@ -19,16 +19,7 @@ async function bootstrap() {
   const prisma = app.get(PrismaService);
   const rt = app.get(RealtimeGateway);
 
-  app.use(async (req: Request, res: Response, next: NextFunction) => {
-    const accept = req.headers['accept'];
-    const acceptsHtml = typeof accept === 'string' && accept.includes('text/html');
-    if (!acceptsHtml) return next();
 
-    try { res.locals.total_users  = await prisma.user.count(); } catch { res.locals.total_users  = 0; }
-    try { res.locals.online_users = rt.getOnlineCount();        } catch { res.locals.online_users = 0; }
-
-    next();
-  });
 
   // Корень "/" оставляем без префикса, все остальное — под /api
   app.setGlobalPrefix('api', {

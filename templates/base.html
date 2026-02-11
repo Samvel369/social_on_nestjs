@@ -1,305 +1,365 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>{% block title %}Соцсеть{% endblock %}</title>
-  <meta name="csrf-token" content="{{ csrf_token | default('') }}">
-  <link rel="stylesheet" href="/static/style.css?v=12" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  
-  <style>
-    /* 🔥 БАЗОВЫЕ СТИЛИ (остальное в style.css) 🔥 */
-    .container {
-      display: flex;
-      min-height: 100vh;
-      transition: all 0.3s ease;
-    }
+    <meta charset="UTF-8" />
+    <title>{% block title %}Соцсеть{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token | default('') }}">
+    <link rel="stylesheet" href="/static/style.css?v=12" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
-    .content { 
-      flex: 1; 
-      padding: 20px; 
-    }
+    <style>
+        /* 🔥 БАЗОВЫЕ СТИЛИ (остальное в style.css) 🔥 */
+        .container {
+            display: flex;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
 
-    /* Тосты */
-    .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-    .toast { background: #333; color: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); min-width: 200px; animation: slideIn 0.3s ease-out; opacity: 0.95; cursor: pointer; }
-    .toast h5 { margin: 0 0 5px 0; color: #4facfe; font-size: 14px; }
-    .toast p { margin: 0; font-size: 13px; }
-    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 0.95; } }
-  </style>
+        .content {
+            flex: 1;
+            padding: 20px;
+        }
+
+        /* Тосты */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: #333;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            animation: slideIn 0.3s ease-out;
+            opacity: 0.95;
+            cursor: pointer;
+        }
+
+        .toast h5 {
+            margin: 0 0 5px 0;
+            color: #4facfe;
+            font-size: 14px;
+        }
+
+        .toast p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 0.95;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-<div class="container">
-  
-  <div class="sidebar" id="sidebar">
-    <button class="menu-toggle-btn" id="menu-toggle" title="Свернуть/Развернуть">
-      <i class="fa-solid fa-bars"></i>
-    </button>
+    <div class="container">
+
+        <div class="sidebar" id="sidebar">
+            <button class="menu-toggle-btn" id="menu-toggle" title="Свернуть/Развернуть">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+
+            {% if current_user and (current_user.id or current_user.userId) %}
+            <div class="user-info">
+                <img src="{{ current_user.avatar_url or '/static/default-avatar.png' }}" class="user-avatar"
+                    alt="Аватар" />
+                <span class="user-name"><strong>{{ current_user.username }}</strong></span>
+            </div>
+            {% endif %}
+
+            <ul>
+                {% if current_user and (current_user.id or current_user.userId) %}
+                <li>
+                    <a href="/api/main/" title="Главная">
+                        <i class="fa-solid fa-home"></i>
+                        <span>Главная</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/profile/view" title="Профиль">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Профиль</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/friends/view" title="Друзья">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Связи</span>
+                        <span id="friends-badge"
+                            class="menu-badge {% if friends_requests_count <= 0 %}hidden{% endif %}">
+                            {{ friends_requests_count }}
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/chat" title="Сообщения">
+                        <i class="fa-solid fa-comments"></i>
+                        <span>Чат</span>
+                        <span id="global-msg-badge" class="menu-badge" style="display: none;">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/my-actions/view" title="Мои действия">
+                        <i class="fa-solid fa-fire"></i>
+                        <span>Мои действия</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/world/view" title="Наш мир">
+                        <i class="fa-solid fa-globe"></i>
+                        <span>Наш мир</span>
+                        <span id="world-badge"
+                            class="menu-badge {% if world_active_actions_count <= 0 %}hidden{% endif %}">
+                            {{ world_active_actions_count }}
+                        </span>
+                    </a>
+                </li>
+                <li style="margin-top: auto;">
+                    <a href="/api/auth/logout" title="Выход">
+                        <i class="fa-solid fa-sign-out-alt"></i>
+                        <span>Выход</span>
+                    </a>
+                </li>
+                {% else %}
+                <li><a href="/"><i class="fa-solid fa-house"></i> <span>Главная</span></a></li>
+                <li><a href="/api/auth/login"><i class="fa-solid fa-right-to-bracket"></i> <span>Вход</span></a></li>
+                <li><a href="/api/auth/register"><i class="fa-solid fa-user-plus"></i> <span>Регистрация</span></a></li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <script>
+            // Скрипт для предотвращения мигания сайдбара
+            // Сразу применяем класс collapsed, если нужно
+            (function () {
+                if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                    document.getElementById('sidebar').classList.add('collapsed');
+                }
+            })();
+        </script>
+
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+
+        <div class="sidebar-right">
+            <p><strong><i class="fa-solid fa-users"></i> Нас уже:</strong> <span id="total-users">{{ total_users |
+                    default(0) }}</span></p>
+            <p><strong><i class="fa-solid fa-circle" style="color:#28a745; font-size:10px;"></i> Онлайн:</strong> <span
+                    id="online-users">{{ online_users | default(0) }}</span></p>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        window.CURRENT_USER_ID = "{{ (current_user and (current_user.id or current_user.userId)) | default('null') }}";
+        if (window.CURRENT_USER_ID === "null") window.CURRENT_USER_ID = null; // Convert back to null if needed
+        window.ACTIVE_CHAT_USER_ID = null; 
+    </script>
 
     {% if current_user and (current_user.id or current_user.userId) %}
-      <div class="user-info">
-        <img
-          src="{{ current_user.avatar_url or '/static/default-avatar.png' }}"
-          class="user-avatar"
-          alt="Аватар"
-        />
-        <span class="user-name"><strong>{{ current_user.username }}</strong></span>
-      </div>
+    <script>
+        setInterval(() => {
+            fetch('/api/profile/last-active', { method: 'POST', credentials: 'include' }).catch(() => { });
+        }, 10000);
+    </script>
     {% endif %}
 
-    <ul>
-        {% if current_user and (current_user.id or current_user.userId) %}
-        <li>
-            <a href="/api/main/" title="Главная">
-                <i class="fa-solid fa-home"></i> 
-                <span>Главная</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/profile/view" title="Профиль">
-                <i class="fa-solid fa-id-card"></i>
-                <span>Профиль</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/friends/view" title="Друзья">
-                <i class="fa-solid fa-users"></i>
-                <span>Связи</span>
-                <span id="friends-badge" class="menu-badge" style="display: {{ 'inline-block' if friends_requests_count > 0 else 'none' }};">
-                    {{ friends_requests_count }}
-                </span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/chat" title="Сообщения">
-                <i class="fa-solid fa-comments"></i>
-                <span>Чат</span>
-                <span id="global-msg-badge" class="menu-badge" style="display: none;">0</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/my-actions/view" title="Мои действия">
-                <i class="fa-solid fa-fire"></i>
-                <span>Мои действия</span>
-            </a>
-        </li>
-        <li>
-            <a href="/api/world/view" title="Наш мир">
-                <i class="fa-solid fa-globe"></i>
-                <span>Наш мир</span>
-                <span id="world-badge" class="menu-badge" style="display: {{ 'inline-block' if world_active_actions_count > 0 else 'none' }};">
-                    {{ world_active_actions_count }}
-                </span>
-            </a>
-        </li>
-        <li style="margin-top: auto; padding-top: 20px;">
-            <a href="/api/auth/logout" title="Выход">
-                <i class="fa-solid fa-sign-out-alt"></i>
-                <span>Выход</span>
-            </a>
-        </li>
-        {% else %}
-        <li><a href="/"><i class="fa-solid fa-house"></i> <span>Главная</span></a></li>
-        <li><a href="/api/auth/login"><i class="fa-solid fa-right-to-bracket"></i> <span>Вход</span></a></li>
-        <li><a href="/api/auth/register"><i class="fa-solid fa-user-plus"></i> <span>Регистрация</span></a></li>
-        {% endif %}
-    </ul>
-  </div>
+    <script src="/static/js/socket.js"></script>
+    <script src="/static/js/friends.js"></script>
 
-  <div class="content">
-    {% block content %}{% endblock %}
-  </div>
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('menu-toggle');
 
-  <div class="sidebar-right">
-    <p><strong><i class="fa-solid fa-users"></i> Нас уже:</strong> <span id="total-users">{{ total_users | default(0) }}</span></p>
-    <p><strong><i class="fa-solid fa-circle" style="color:#28a745; font-size:10px;"></i> Онлайн:</strong> <span id="online-users">{{ online_users | default(0) }}</span></p>
-  </div>
-</div>
-
-<div id="toast-container" class="toast-container"></div>
-
-<script>
-  window.CURRENT_USER_ID = {{ (current_user and (current_user.id or current_user.userId)) | default('null') }};
-  window.ACTIVE_CHAT_USER_ID = null; 
-</script>
-
-{% if current_user and (current_user.id or current_user.userId) %}
-<script>
-  setInterval(() => {
-    fetch('/api/profile/last-active', { method: 'POST', credentials: 'include' }).catch(()=>{});
-  }, 10000);
-</script>
-{% endif %}
-
-<script src="/static/js/socket.js"></script>
-<script src="/static/js/friends.js"></script>
-
-<script>
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('menu-toggle');
-
-    if (localStorage.getItem('sidebar-collapsed') === 'true') {
-        sidebar.classList.add('collapsed');
-    }
-
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
-        });
-    }
-</script>
-
-<script>
-(function() {
-    const msgBadge = document.getElementById('global-msg-badge');
-    const friendsBadge = document.getElementById('friends-badge');
-    const worldBadge = document.getElementById('world-badge');
-    const toastContainer = document.getElementById('toast-container');
-    let socket = window.socket;
-
-    // Функция обновления счетчика сообщений
-    async function updateMsgBadgeCount() {
-        if(!window.CURRENT_USER_ID) return;
-        try {
-            const res = await fetch('/api/chat/unread-count');
-            const data = await res.json();
-            if (msgBadge) {
-                if (data.count > 0) {
-                    msgBadge.style.display = 'inline-block';
-                    msgBadge.innerText = data.count;
-                } else {
-                    msgBadge.style.display = 'none';
-                }
-            }
-        } catch(e) {}
-    }
-
-    // Функция обновления счетчика заявок в друзья
-    async function updateFriendsBadgeCount() {
-        if(!window.CURRENT_USER_ID) return;
-        try {
-            const res = await fetch('/api/friends/incoming-count');
-            const data = await res.json();
-            if (friendsBadge) {
-                if (data.count > 0) {
-                    friendsBadge.style.display = 'inline-block';
-                    friendsBadge.innerText = data.count;
-                } else {
-                    friendsBadge.style.display = 'none';
-                }
-            }
-        } catch(e) {}
-    }
-
-    // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ: Обновление счетчика непросмотренных действий в "Наш мир" 🔥
-    async function updateWorldBadgeCount() {
-        if(!window.CURRENT_USER_ID) {
-            if (worldBadge) worldBadge.style.display = 'none';
-            return;
+        if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            sidebar.classList.add('collapsed');
         }
 
-        // Если пользователь находится на странице "Наш мир", скрываем бейдж и отправляем сигнал серверу
-        if (window.location.pathname.startsWith('/api/world/view')) {
-            if (worldBadge) worldBadge.style.display = 'none'; // Скрываем бейдж
-            // Отправляем запрос на сервер, чтобы пометить действия как "просмотренные"
-            try {
-                await fetch('/api/world/mark-seen', { method: 'POST', credentials: 'include' });
-            } catch (e) {
-                console.error("Error marking world actions as seen:", e);
-            }
-            return; // Выходим, так как бейдж должен быть скрыт на этой странице
-        }
-
-        // На других страницах запрашиваем количество непросмотренных
-        try {
-            const res = await fetch('/api/world/unseen-actions-count'); // 🔥 НОВАЯ РУЧКА
-            const data = await res.json();
-            if (worldBadge) {
-                if (data.count > 0) {
-                    worldBadge.style.display = 'inline-block';
-                    worldBadge.innerText = data.count;
-                } else {
-                    worldBadge.style.display = 'none';
-                }
-            }
-        } catch(e) {
-            console.error('Error fetching unseen world actions count:', e);
-            if (worldBadge) worldBadge.style.display = 'none';
-        }
-    }
-
-
-    function showToast(senderName, text) {
-        const div = document.createElement('div');
-        div.className = 'toast';
-        div.innerHTML = `<h5>${senderName}</h5><p>${text.substring(0, 30)}${text.length>30?'...':''}</p>`;
-        div.onclick = () => window.location.href = '/api/chat';
-        if(toastContainer) {
-            toastContainer.appendChild(div);
-            setTimeout(() => { div.remove(); }, 10000);
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        updateMsgBadgeCount();
-        updateFriendsBadgeCount();
-        updateWorldBadgeCount(); // Вызываем при загрузке страницы
-        
-        // Получаем socket из window.socket (который создается в socket.js)
-        // Используем задержку, чтобы socket.js успел инициализироваться
-        const initSocketListeners = () => {
-            const currentSocket = window.socket || socket;
-            if (!currentSocket) {
-                // Если socket еще не готов, пробуем через небольшую задержку
-                setTimeout(initSocketListeners, 100);
-                return;
-            }
-            
-            // Удаляем старые обработчики, если они есть
-            currentSocket.off('chat:new_message');
-            currentSocket.off('friends:lists:refresh');
-            currentSocket.off('world:actions:refresh');
-            
-            currentSocket.on('chat:new_message', (msg) => {
-                if (window.CURRENT_USER_ID === msg.senderId) return; 
-                if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return; 
-                showToast(msg.senderName || 'Друг', msg.content);
-                updateMsgBadgeCount(); 
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
             });
+        }
+    </script>
 
-            currentSocket.on('friends:lists:refresh', () => {
+    <script>
+        (function () {
+            const msgBadge = document.getElementById('global-msg-badge');
+            const friendsBadge = document.getElementById('friends-badge');
+            const worldBadge = document.getElementById('world-badge');
+            const toastContainer = document.getElementById('toast-container');
+            let socket = window.socket;
+
+            // Функция обновления счетчика сообщений
+            async function updateMsgBadgeCount() {
+                if (!window.CURRENT_USER_ID) return;
+                try {
+                    const res = await fetch('/api/chat/unread-count');
+                    const data = await res.json();
+                    if (msgBadge) {
+                        if (data.count > 0) {
+                            msgBadge.style.display = 'inline-block';
+                            msgBadge.innerText = data.count;
+                        } else {
+                            msgBadge.style.display = 'none';
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            // Функция обновления счетчика заявок в друзья
+            async function updateFriendsBadgeCount() {
+                if (!window.CURRENT_USER_ID) return;
+                try {
+                    const res = await fetch('/api/friends/incoming-count');
+                    const data = await res.json();
+                    if (friendsBadge) {
+                        if (data.count > 0) {
+                            friendsBadge.style.display = 'inline-block';
+                            friendsBadge.innerText = data.count;
+                        } else {
+                            friendsBadge.style.display = 'none';
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ: Обновление счетчика непросмотренных действий в "Наш мир" 🔥
+            async function updateWorldBadgeCount() {
+                if (!window.CURRENT_USER_ID) {
+                    if (worldBadge) worldBadge.style.display = 'none';
+                    return;
+                }
+
+                // Если пользователь находится на странице "Наш мир", скрываем бейдж и отправляем сигнал серверу
+                if (window.location.pathname.startsWith('/api/world/view')) {
+                    if (worldBadge) worldBadge.style.display = 'none'; // Скрываем бейдж
+                    // Отправляем запрос на сервер, чтобы пометить действия как "просмотренные"
+                    try {
+                        await fetch('/api/world/mark-seen', { method: 'POST', credentials: 'include' });
+                    } catch (e) {
+                        console.error("Error marking world actions as seen:", e);
+                    }
+                    return; // Выходим, так как бейдж должен быть скрыт на этой странице
+                }
+
+                // На других страницах запрашиваем количество непросмотренных
+                try {
+                    const res = await fetch('/api/world/unseen-actions-count'); // 🔥 НОВАЯ РУЧКА
+                    const data = await res.json();
+                    if (worldBadge) {
+                        if (data.count > 0) {
+                            worldBadge.style.display = 'inline-block';
+                            worldBadge.innerText = data.count;
+                        } else {
+                            worldBadge.style.display = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching unseen world actions count:', e);
+                    if (worldBadge) worldBadge.style.display = 'none';
+                }
+            }
+
+
+            function showToast(senderName, text) {
+                const div = document.createElement('div');
+                div.className = 'toast';
+                div.innerHTML = `<h5>${senderName}</h5><p>${text.substring(0, 30)}${text.length > 30 ? '...' : ''}</p>`;
+                div.onclick = () => window.location.href = '/api/chat';
+                if (toastContainer) {
+                    toastContainer.appendChild(div);
+                    setTimeout(() => { div.remove(); }, 10000);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                updateMsgBadgeCount();
                 updateFriendsBadgeCount();
+                updateWorldBadgeCount(); // Вызываем при загрузке страницы
+
+                // Получаем socket из window.socket (который создается в socket.js)
+                // Используем задержку, чтобы socket.js успел инициализироваться
+                const initSocketListeners = () => {
+                    const currentSocket = window.socket || socket;
+                    if (!currentSocket) {
+                        // Если socket еще не готов, пробуем через небольшую задержку
+                        setTimeout(initSocketListeners, 100);
+                        return;
+                    }
+
+                    // Удаляем старые обработчики, если они есть
+                    currentSocket.off('chat:new_message');
+                    currentSocket.off('friends:lists:refresh');
+                    currentSocket.off('world:actions:refresh');
+
+                    currentSocket.on('chat:new_message', (msg) => {
+                        if (window.CURRENT_USER_ID === msg.senderId) return;
+                        if (window.ACTIVE_CHAT_USER_ID === msg.senderId) return;
+                        showToast(msg.senderName || 'Друг', msg.content);
+                        updateMsgBadgeCount();
+                    });
+
+                    currentSocket.on('friends:lists:refresh', () => {
+                        updateFriendsBadgeCount();
+                    });
+
+                    // 🔥 Слушаем обновление действий мира 🔥
+                    // Теперь эта функция сама решает, показывать или скрывать бейдж в зависимости от страницы
+                    currentSocket.on('world:actions:refresh', () => {
+                        updateWorldBadgeCount();
+                    });
+                };
+
+                // Пробуем инициализировать сразу, если socket уже готов
+                initSocketListeners();
+
+                // 🔥 Периодическое обновление бейджа "Наш мир" для отслеживания истечения времени действий
+                // Обновляем каждые 10 секунд, но только если пользователь не на странице "Наш мир"
+                setInterval(() => {
+                    // Проверяем, не на странице "Наш мир", чтобы не делать лишние запросы
+                    if (!window.location.pathname.startsWith('/api/world/view')) {
+                        updateWorldBadgeCount();
+                    }
+                }, 10000); // 10 секунд
             });
 
-            // 🔥 Слушаем обновление действий мира 🔥
-            // Теперь эта функция сама решает, показывать или скрывать бейдж в зависимости от страницы
-            currentSocket.on('world:actions:refresh', () => {
-                updateWorldBadgeCount(); 
-            });
-        };
-        
-        // Пробуем инициализировать сразу, если socket уже готов
-        initSocketListeners();
+            window.updateGlobalBadge = updateMsgBadgeCount;
+            window.updateFriendsBadge = updateFriendsBadgeCount;
+            window.updateWorldBadge = updateWorldBadgeCount;
+        })();
+    </script>
 
-        // 🔥 Периодическое обновление бейджа "Наш мир" для отслеживания истечения времени действий
-        // Обновляем каждые 10 секунд, но только если пользователь не на странице "Наш мир"
-        setInterval(() => {
-            // Проверяем, не на странице "Наш мир", чтобы не делать лишние запросы
-            if (!window.location.pathname.startsWith('/api/world/view')) {
-                updateWorldBadgeCount();
-            }
-        }, 10000); // 10 секунд
-    });
-
-    window.updateGlobalBadge = updateMsgBadgeCount;
-    window.updateFriendsBadge = updateFriendsBadgeCount;
-    window.updateWorldBadge = updateWorldBadgeCount;
-})();
-</script>
-
-<script src="/static/js/api.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script>
+        // Убираем класс preload после загрузки, чтобы включить анимации
+        window.addEventListener('load', () => {
+            document.body.classList.remove('preload');
+        });
+    </script>
 </body>
+
 </html>
