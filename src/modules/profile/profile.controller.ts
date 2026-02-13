@@ -25,9 +25,23 @@ import { getDisplayName } from '../../common/utils/user.utils';
 
 @Controller('profile')
 export class ProfileController {
-  constructor(private readonly service: ProfileService) {}
+  constructor(private readonly service: ProfileService) { }
 
   // ====================== HTML (SSR) ======================
+
+  @UseGuards(JwtAuthGuard)
+  @Get('stats')
+  @Render('statistics.html')
+  async stats(@CurrentUser() user: AuthUser) {
+    const stats = await this.service.getStats(user.userId);
+    return {
+      user: {
+        id: user.userId, // We need this for the base template
+        username: getDisplayName({ username: user.username, firstName: undefined, lastName: undefined } as any),
+      },
+      stats
+    };
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('view')
@@ -59,7 +73,7 @@ export class ProfileController {
       about: me.user.about ?? '',
     };
 
-    return { current_user, user: userView};
+    return { current_user, user: userView };
   }
 
   @Get('public/:id')
@@ -154,6 +168,8 @@ export class ProfileController {
     res.clearCookie('token');
     return { ok: true, redirect: '/' };
   }
+
+
 
   // ====================== JSON ======================
 

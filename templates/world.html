@@ -15,51 +15,138 @@
 <div class="tabs-container">
   <!-- Заголовки вкладок -->
   <div class="tabs-header">
-    <button class="tab-button active" data-tab="daily">
+    <button class="tab-button active" data-tab="top10">
+      <i class="fa-solid fa-trophy"></i>
+      <span>Топ 10</span>
+    </button>
+    <button class="tab-button" data-tab="daily">
       <i class="fa-solid fa-clock"></i>
-      <span>Ежедневные</span>
+      <span>Сейчас происходит</span>
     </button>
     <button class="tab-button" data-tab="happening">
       <i class="fa-solid fa-fire"></i>
-      <span>Сейчас происходит</span>
+      <span>Создать событие</span>
     </button>
   </div>
 
+  <!-- Вкладка: Топ 10 -->
+  <div class="tab-content active" id="tab-top10">
+    <div
+      style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+      <h3 style="margin-bottom: 20px;">
+        <i class="fa-solid fa-trophy" style="color: var(--accent-pulse);"></i>
+        Топ 10 действий за последнюю минуту
+      </h3>
+
+      <ul id="top-actions-list" style="list-style: none; padding: 0;">
+        <li style="text-align: center; padding: 20px; color: var(--text-secondary);">Загрузка...</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function updateTopActions() {
+      // Only fetch if the tab is active
+      const top10Tab = document.getElementById('tab-top10');
+      if (!top10Tab || !top10Tab.classList.contains('active')) return;
+
+      fetch('/api/actions/get_top_actions', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          const list = document.getElementById('top-actions-list');
+          if (!list) return;
+
+          if (!Array.isArray(data) || data.length === 0) {
+            const currentText = list.textContent?.trim();
+            if (currentText !== 'Нет активных действий') {
+              list.innerHTML = '<li style="text-align: center; color: var(--text-muted); padding: 20px;">Нет активных действий</li>';
+            }
+            return;
+          }
+
+          const currentContent = list.innerHTML;
+          const newContent = data.map((action, idx) => {
+            return `<li data-id="${action.id}" style="padding: 12px; margin: 8px 0; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-sm);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="/api/actions/action_card/${action.id}" target="_blank" style="flex: 1; text-decoration: none; color: var(--text-primary);">
+                  <strong style="color: var(--accent-pulse); margin-right: 8px;">${idx + 1}.</strong> ${action.text}
+                </a>
+                <span style="font-weight: 700; color: var(--accent-connection); font-size: 16px; min-width: 60px; text-align: right;">
+                  ${action.marks ?? 0} <i class="fa-solid fa-user" style="font-size: 12px; opacity: 0.7;"></i>
+                </span>
+              </div>
+            </li>`;
+          }).join('');
+
+          if (currentContent !== newContent) {
+            list.innerHTML = newContent;
+          }
+        })
+        .catch(() => { });
+    }
+
+    // Init & Interval
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initial check if tab is active by default (it's not, but good practice)
+      if (document.getElementById('tab-top10')?.classList.contains('active')) {
+        updateTopActions();
+      }
+
+      // Polling every second
+      setInterval(updateTopActions, 1000);
+
+      // Also trigger update when tab is clicked
+      const top10Btn = document.querySelector('button[data-tab="top10"]');
+      if (top10Btn) {
+        top10Btn.addEventListener('click', () => {
+          // Small delay to allow class switch
+          setTimeout(updateTopActions, 50);
+        });
+      }
+    });
+  </script>
+
   <!-- Вкладка: Ежедневные -->
-  <div class="tab-content active" id="tab-daily">
-    <div style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+  <div class="tab-content" id="tab-daily">
+    <div
+      style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
       <h3 style="margin-bottom: 20px;">
         <i class="fa-solid fa-clock" style="color: var(--accent-pulse);"></i>
-        Ежедневные действия
+        Сейчас происходит
       </h3>
       <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-        Каждая отметка живёт ровно 1 минуту с момента постановки. Отметьтесь и увидьте, кто делает то же самое прямо сейчас.
+        Каждая отметка живёт ровно 1 минуту с момента постановки. Отметьтесь и увидьте, кто делает то же самое прямо
+        сейчас.
       </p>
 
-      <input type="text" id="daily-actions-search" placeholder="Поиск действия..." style="width: 100%; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); box-sizing: border-box;" />
+      <input type="text" id="daily-actions-search" placeholder="Поиск действия..."
+        style="width: 100%; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; border: 2px solid var(--border-color); border-radius: var(--radius-sm); box-sizing: border-box;" />
 
       {% if daily_actions and daily_actions.length %}
-        <div id="daily-actions-scroll" style="max-height: 420px; overflow-y: auto;">
+      <div id="daily-actions-scroll" style="max-height: 420px; overflow-y: auto;">
         <ul id="daily-actions-list" style="list-style: none; padding: 0; margin: 0;">
           {% for action in daily_actions %}
-            <li data-daily-id="{{ action.id }}" class="daily-action-row" style="padding: 12px 16px; margin: 12px 0; background: rgba(243, 156, 18, 0.05); border-left: 4px solid var(--accent-pulse); border-radius: var(--radius-sm); transition: all 0.3s ease;">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: nowrap;">
-                <span style="flex: 1; font-weight: 600; min-width: 0;">{{ action.text }}</span>
-                <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
-                  <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
-                    <span id="daily-counter-{{ action.id }}">{{ action.count }}</span>
-                  </span>
-                  <button type="button" class="daily-mark-btn" data-daily-id="{{ action.id }}" style="width: auto; padding: 6px 12px; white-space: nowrap;">
-                    <i class="fa-solid fa-check"></i> Отметиться
-                  </button>
-                </div>
+          <li data-daily-id="{{ action.id }}" class="daily-action-row"
+            style="padding: 12px 16px; margin: 12px 0; background: rgba(243, 156, 18, 0.05); border-left: 4px solid var(--accent-pulse); border-radius: var(--radius-sm); transition: all 0.3s ease;">
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: nowrap;">
+              <span style="flex: 1; font-weight: 600; min-width: 0;">{{ action.text }}</span>
+              <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+                <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
+                  <span id="daily-counter-{{ action.id }}">{{ action.count }}</span>
+                </span>
+                <button type="button" class="daily-mark-btn" data-daily-id="{{ action.id }}"
+                  style="width: auto; padding: 6px 12px; white-space: nowrap;">
+                  <i class="fa-solid fa-check"></i> Отметиться
+                </button>
               </div>
-            </li>
+            </div>
+          </li>
           {% endfor %}
         </ul>
-        </div>
+      </div>
       {% else %}
-        <p style="color: var(--text-muted); text-align: center; padding: 40px;">Нет ежедневных действий</p>
+      <p style="color: var(--text-muted); text-align: center; padding: 40px;">Нет ежедневных действий</p>
       {% endif %}
     </div>
   </div>
@@ -67,36 +154,40 @@
   <!-- Вкладка: Сейчас происходит -->
   <div class="tab-content" id="tab-happening">
     <div style="display: grid; grid-template-columns: 70fr 30fr; gap: 24px;">
-      
+
       <!-- Колонка: Опубликованные (70%) -->
-      <div style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+      <div
+        style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
         <h3 style="margin-bottom: 20px;">
           <i class="fa-solid fa-fire" style="color: var(--accent-moment);"></i>
-          Сейчас происходит
+          Создать событие
         </h3>
         <ul id="published-actions" style="list-style: none; padding: 0;">
           {% for action in published %}
-            <li data-id="{{ action.id }}" style="padding: 16px; margin: 12px 0; background: rgba(231, 76, 60, 0.05); border-left: 4px solid var(--accent-moment); border-radius: var(--radius-sm); transition: all 0.3s ease;">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px;">
-                <a href="/api/actions/action_card/{{ action.id }}" target="_blank" style="flex: 1; font-weight: 600;">
-                  {{ action.text }}
-                </a>
-                <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
-                  <span id="counter-{{ action.id }}">0</span> чел.
-                </span>
-              </div>
-              <button type="button" class="published-mark-btn" data-action-id="{{ action.id }}" style="width: 100%;">
-                <i class="fa-solid fa-check"></i> Отметиться
-              </button>
-              <div id="message-{{ action.id }}" class="msg" style="margin-top: 8px; font-size: 14px;"></div>
-              <span id="cooldown-{{ action.id }}" style="display:none;"></span>
-            </li>
+          <li data-id="{{ action.id }}"
+            style="padding: 16px; margin: 12px 0; background: rgba(231, 76, 60, 0.05); border-left: 4px solid var(--accent-moment); border-radius: var(--radius-sm); transition: all 0.3s ease;">
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px;">
+              <a href="/api/actions/action_card/{{ action.id }}" target="_blank" style="flex: 1; font-weight: 600;">
+                {{ action.text }}
+              </a>
+              <span style="font-weight: 700; color: var(--accent-connection); white-space: nowrap; font-size: 18px;">
+                <span id="counter-{{ action.id }}">0</span> чел.
+              </span>
+            </div>
+            <button type="button" class="published-mark-btn" data-action-id="{{ action.id }}" style="width: 100%;">
+              <i class="fa-solid fa-check"></i> Отметиться
+            </button>
+            <div id="message-{{ action.id }}" class="msg" style="margin-top: 8px; font-size: 14px;"></div>
+            <span id="cooldown-{{ action.id }}" style="display:none;"></span>
+          </li>
           {% endfor %}
         </ul>
       </div>
 
       <!-- Колонка: Создать действие (30%) -->
-      <div style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
+      <div
+        style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color);">
         <h3 style="margin-bottom: 16px; font-size: 18px;">
           <i class="fa-solid fa-plus-circle" style="color: var(--accent-connection);"></i>
           Создать
@@ -112,37 +203,40 @@
 
         {% set _drafts = drafts or my_created %}
         {% if _drafts and _drafts.length %}
-          <h4 style="margin-top: 24px; margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">Созданные</h4>
+        <h4 style="margin-top: 24px; margin-bottom: 12px; color: var(--text-secondary); font-size: 14px;">Созданные</h4>
 
-          <div id="created-actions">
-            {% for action in _drafts %}
-              <div class="draft-action" data-id="{{ action.id }}" style="padding: 12px; margin-bottom: 12px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: 8px; margin-bottom: 12px;">
-                  <p style="margin:0; flex: 1; font-size: 13px;">
-                    <a href="/api/actions/action_card/{{ action.id }}" target="_blank">{{ action.text }}</a>
-                  </p>
-                  <form method="post" action="/api/my-actions/delete/{{ action.id }}" style="margin: 0;">
-                    <button type="submit" onclick="return confirm('Удалить?')" class="btn-danger" style="padding: 6px 10px; font-size: 12px;">
-                      <i class="fa-solid fa-trash"></i>
-                    </button>
-                  </form>
-                </div>
+        <div id="created-actions">
+          {% for action in _drafts %}
+          <div class="draft-action" data-id="{{ action.id }}" style="padding: 12px; margin-bottom: 12px;">
+            <div
+              style="display:flex; justify-content:space-between; align-items:flex-start; gap: 8px; margin-bottom: 12px;">
+              <p style="margin:0; flex: 1; font-size: 13px;">
+                <a href="/api/actions/action_card/{{ action.id }}" target="_blank">{{ action.text }}</a>
+              </p>
+              <form method="post" action="/api/my-actions/delete/{{ action.id }}" style="margin: 0;">
+                <button type="submit" onclick="return confirm('Удалить?')" class="btn-danger"
+                  style="padding: 6px 10px; font-size: 12px;">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </div>
 
-                <!-- Публикация черновика -->
-                <form class="world-publish" method="post" action="/api/my-actions/publish" style="gap: 8px;">
-                  <input type="hidden" name="id" value="{{ action.id }}">
-                  <select name="duration" id="duration-{{ action.id }}" style="flex: 1; font-size: 13px; padding: 8px;">
-                    <option value="10">10 мин</option>
-                    <option value="30">30 мин</option>
-                    <option value="60">1 час</option>
-                  </select>
-                  <button type="button" class="publish-btn btn-success" data-id="{{ action.id }}" style="flex: 1; font-size: 12px; padding: 8px 12px;">
-                    <i class="fa-solid fa-rocket"></i> Опубликовать
-                  </button>
-                </form>
-              </div>
-            {% endfor %}
+            <!-- Публикация черновика -->
+            <form class="world-publish" method="post" action="/api/my-actions/publish" style="gap: 8px;">
+              <input type="hidden" name="id" value="{{ action.id }}">
+              <select name="duration" id="duration-{{ action.id }}" style="flex: 1; font-size: 13px; padding: 8px;">
+                <option value="10">10 мин</option>
+                <option value="30">30 мин</option>
+                <option value="60">1 час</option>
+              </select>
+              <button type="button" class="publish-btn btn-success" data-id="{{ action.id }}"
+                style="flex: 1; font-size: 12px; padding: 8px 12px;">
+                <i class="fa-solid fa-rocket"></i> Опубликовать
+              </button>
+            </form>
           </div>
+          {% endfor %}
+        </div>
         {% endif %}
       </div>
 

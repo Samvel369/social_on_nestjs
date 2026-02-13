@@ -90,15 +90,32 @@
             <ul>
                 {% if current_user and (current_user.id or current_user.userId) %}
                 <li>
-                    <a href="/api/main/" title="Главная">
-                        <i class="fa-solid fa-home"></i>
-                        <span>Главная</span>
+                    <a href="/api/world/view" title="Наш мир">
+                        <i class="fa-solid fa-globe"></i>
+                        <span>Наш мир</span>
+                        <span id="world-badge"
+                            class="menu-badge {% if world_active_actions_count <= 0 %}hidden{% endif %}">
+                            {{ world_active_actions_count }}
+                        </span>
                     </a>
                 </li>
                 <li>
-                    <a href="/api/profile/view" title="Профиль">
-                        <i class="fa-solid fa-id-card"></i>
-                        <span>Профиль</span>
+                    <a href="/api/my-actions/view" title="Мои действия">
+                        <i class="fa-solid fa-fire"></i>
+                        <span>Мои действия</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/profile/stats" title="Статистика">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <span>Статистика</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/api/chat" title="Сообщения">
+                        <i class="fa-solid fa-comments"></i>
+                        <span>Чат</span>
+                        <span id="global-msg-badge" class="menu-badge" style="display: none;">0</span>
                     </a>
                 </li>
                 <li>
@@ -112,26 +129,9 @@
                     </a>
                 </li>
                 <li>
-                    <a href="/api/chat" title="Сообщения">
-                        <i class="fa-solid fa-comments"></i>
-                        <span>Чат</span>
-                        <span id="global-msg-badge" class="menu-badge" style="display: none;">0</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/api/my-actions/view" title="Мои действия">
-                        <i class="fa-solid fa-fire"></i>
-                        <span>Мои действия</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/api/world/view" title="Наш мир">
-                        <i class="fa-solid fa-globe"></i>
-                        <span>Наш мир</span>
-                        <span id="world-badge"
-                            class="menu-badge {% if world_active_actions_count <= 0 %}hidden{% endif %}">
-                            {{ world_active_actions_count }}
-                        </span>
+                    <a href="/api/profile/view" title="Профиль">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Профиль</span>
                     </a>
                 </li>
                 <li style="margin-top: auto;">

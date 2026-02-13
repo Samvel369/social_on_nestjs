@@ -142,4 +142,36 @@ export class ProfileService {
     const count = await this.prisma.user.count();
     this.rt.broadcastTotalUsers(count);
   }
+
+  async getStats(userId: number) {
+    const [actionsCreated, marksReceived, marksGiven, profileViews] = await Promise.all([
+      // 1. Actions created
+      this.prisma.action.count({
+        where: { userId },
+      }),
+      // 2. Marks received (on my actions)
+      this.prisma.actionMark.count({
+        where: {
+          action: {
+            userId: userId,
+          },
+        },
+      }),
+      // 3. Marks given (by me)
+      this.prisma.actionMark.count({
+        where: { userId },
+      }),
+      // 4. Profile views (how many people viewed me)
+      this.prisma.potentialFriendView.count({
+        where: { userId }, // userId field in PFV is the TARGET user
+      }),
+    ]);
+
+    return {
+      actionsCreated,
+      marksReceived,
+      marksGiven,
+      profileViews,
+    };
+  }
 }

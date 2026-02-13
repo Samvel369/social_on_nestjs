@@ -10,4 +10,4 @@ import { RealtimeGateway } from '../../gateways/realtime.gateway';
   providers: [WorldService, RealtimeGateway],
   exports: [WorldService, RealtimeGateway], // 🔥 Экспортируем WorldService и RealtimeGateway
 })
-export class WorldModule {}
+export class WorldModule { }

@@ -8,7 +8,7 @@ export class WorldService {
   constructor(
     private prisma: PrismaService,
     private rt: RealtimeGateway,
-  ) {}
+  ) { }
 
   // 🔥 МЕТОД: Подсчет НЕПРОСМОТРЕННЫХ активных действий
   async getUnseenActiveActionsCount(userId: number): Promise<number> {
@@ -185,10 +185,10 @@ export class WorldService {
         }),
         userId
           ? this.prisma.dailyActionMark.findMany({
-              where: { userId },
-              orderBy: { createdAt: 'desc' },
-              select: { dailyActionId: true },
-            })
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            select: { dailyActionId: true },
+          })
           : Promise.resolve([]),
       ]);
 
