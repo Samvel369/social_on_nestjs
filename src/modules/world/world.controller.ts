@@ -23,7 +23,7 @@ export class WorldController {
   constructor(
     private readonly service: WorldService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   // 🔥 МОДИФИЦИРОВАННЫЙ МЕТОД: API для получения количества НЕПРОСМОТРЕННЫХ активных действий
   @Get('unseen-actions-count') // Изменил название для ясности, чтобы отличалось от общего количества
@@ -54,8 +54,16 @@ export class WorldController {
     } : null;
 
     const daily_actions = await this.service.getDailyActions(user.userId);
-    const published: any[] = [];
-    const drafts: any[] = [];
+
+    // 🔥 Fetch user's actions (drafts and published) for the "Events" tab
+    const myActions = await this.prisma.action.findMany({
+      where: { userId: user.userId },
+      orderBy: { createdAt: 'desc' },
+      include: { marks: true },
+    });
+
+    const published = myActions.filter(a => a.isPublished);
+    const drafts = myActions.filter(a => !a.isPublished);
 
     return {
       current_user,

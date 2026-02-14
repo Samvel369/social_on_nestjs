@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService,  } from '../../prisma/prisma.service';
-import { CreateActionDto, PublishActionDto, DeleteActionDto } from './my-actions.dto';
+import { PrismaService, } from '../../prisma/prisma.service';
+import { CreateActionDto, PublishActionDto, DeleteActionDto } from './events.dto';
 import { RealtimeGateway } from '../../gateways/realtime.gateway';
 
 function normalizeText(text: string): string {
@@ -12,11 +12,11 @@ function normalizeText(text: string): string {
 }
 
 @Injectable()
-export class MyActionsService {
+export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rt: RealtimeGateway,
-  ) {}
+  ) { }
 
   /** Список черновиков пользователя */
   async getDrafts(userId: number) {
@@ -85,7 +85,7 @@ export class MyActionsService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.userId !== userId) throw new ForbiddenException('not your action');
     if (draft.isPublished && draft.expiresAt && draft.expiresAt > now) {
-       throw new BadRequestException('Это действие еще активно. Подождите, пока оно истечет.');
+      throw new BadRequestException('Это действие еще активно. Подождите, пока оно истечет.');
     }
 
     const norm = draft.normalizedText || normalizeText(draft.text);

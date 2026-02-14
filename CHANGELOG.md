@@ -1,5 +1,18 @@
 # 📝 Changelog
 
+## 2026-02-14
+
+### Refactoring: My Actions → Events
+- **Module Renaming:** `MyActions` module completely refactored to `Events` (controller, service, module, DTOs).
+- **API Routes:** Endpoints updated from `/api/my-actions` to `/api/events`.
+- **Frontend Script:** `my_actions.js` renamed to `events.js`, logic updated to support new API and socket events (`events:changed`).
+
+### World Page Update
+- **New Tab:** "Events" (formerly My Actions) moved to a dedicated tab on the World page.
+- **Layout Fix:** Fixed sidebar layout issues caused by unclosed div tags.
+- **UX:** "Events" tab now correctly persists state and does not overlap with other tabs.
+- **Cleanup:** Removed standalone "My Actions" page and cleaner menu.
+
 ## 2026-02-13
 
 ### Навигация и Статистика

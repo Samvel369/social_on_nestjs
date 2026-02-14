@@ -27,6 +27,10 @@
       <i class="fa-solid fa-fire"></i>
       <span>Создать событие</span>
     </button>
+    <button class="tab-button" data-tab="events">
+      <i class="fa-solid fa-list"></i>
+      <span>События</span>
+    </button>
   </div>
 
   <!-- Вкладка: Топ 10 -->
@@ -151,7 +155,7 @@
     </div>
   </div>
 
-  <!-- Вкладка: Сейчас происходит -->
+  <!-- Вкладка: Сейчас происходит (Создание) -->
   <div class="tab-content" id="tab-happening">
     <div style="display: grid; grid-template-columns: 70fr 30fr; gap: 24px;">
 
@@ -194,7 +198,7 @@
         </h3>
 
         <!-- Создание черновика -->
-        <form id="world-create-form" method="post" action="/api/my-actions/new" style="gap: 12px; margin-bottom: 20px;">
+        <form id="world-create-form" method="post" action="/api/events/new" style="gap: 12px; margin-bottom: 20px;">
           <input type="text" name="text" placeholder="Ваше действие..." style="font-size: 14px;" />
           <button type="button" id="world-create-btn" style="width: 100%; font-size: 14px;">
             <i class="fa-solid fa-plus"></i> Создать
@@ -213,7 +217,7 @@
               <p style="margin:0; flex: 1; font-size: 13px;">
                 <a href="/api/actions/action_card/{{ action.id }}" target="_blank">{{ action.text }}</a>
               </p>
-              <form method="post" action="/api/my-actions/delete/{{ action.id }}" style="margin: 0;">
+              <form method="post" action="/api/events/delete/{{ action.id }}" style="margin: 0;">
                 <button type="submit" onclick="return confirm('Удалить?')" class="btn-danger"
                   style="padding: 6px 10px; font-size: 12px;">
                   <i class="fa-solid fa-trash"></i>
@@ -222,7 +226,7 @@
             </div>
 
             <!-- Публикация черновика -->
-            <form class="world-publish" method="post" action="/api/my-actions/publish" style="gap: 8px;">
+            <form class="world-publish" method="post" action="/api/events/publish" style="gap: 8px;">
               <input type="hidden" name="id" value="{{ action.id }}">
               <select name="duration" id="duration-{{ action.id }}" style="flex: 1; font-size: 13px; padding: 8px;">
                 <option value="10">10 мин</option>
@@ -242,24 +246,159 @@
 
     </div>
   </div>
+  <!-- Вкладка: События -->
+  <div class="tab-content" id="tab-events">
+    <div
+      style="background: var(--bg-card); padding: 28px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); border: 2px solid var(--border-color); margin-bottom: 32px;">
+      <h3>
+        <i class="fa-solid fa-plus-circle" style="color: var(--accent-connection);"></i>
+        Добавить новое действие
+      </h3>
+      <form id="create-action-form" data-ajax="1" style="display: flex; gap: 12px; margin-top: 20px;">
+        <input type="text" id="new-action-text" name="text" placeholder="Что вы делаете прямо сейчас?" required
+          style="flex: 1;" />
+        <button type="submit" class="btn-success">
+          <i class="fa-solid fa-paper-plane"></i>
+          Создать
+        </button>
+      </form>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+      <!-- Черновики -->
+      <div>
+        <h3 style="margin-bottom: 20px;">
+          <i class="fa-solid fa-file" style="color: var(--accent-pulse);"></i>
+          Черновики
+        </h3>
+        <div id="drafts-list">
+          {% if drafts and drafts.length %}
+          {% for d in drafts %}
+          <div class="action-item draft-action" data-id="{{ d.id }}"
+            style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <a href="/api/actions/action_card/{{ d.id }}"
+                style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{
+                d.text }}</a>
+
+              <select class="duration" style="width: 95px; font-size: 12px; padding: 6px;">
+                <option value="10">10 мин</option>
+                <option value="30">30 мин</option>
+                <option value="60">1 час</option>
+              </select>
+
+              <button type="button" class="publish-btn btn-success"
+                style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+                <i class="fa-solid fa-rocket"></i> Опубликовать
+              </button>
+
+              <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <p id="no-drafts" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет черновиков</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Опубликованные -->
+      <div>
+        <h3 style="margin-bottom: 20px;">
+          <i class="fa-solid fa-fire" style="color: var(--accent-moment);"></i>
+          Опубликованные действия
+        </h3>
+        <div id="published-list">
+          {% if published and published.length %}
+          {% for a in published %}
+          <div class="action-item" data-id="{{ a.id }}"
+            style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-md); border: 2px solid var(--border-color); margin-bottom: 10px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
+              <a href="/api/actions/action_card/{{ a.id }}"
+                style="flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{
+                a.text }}</a>
+
+              <select class="republish-duration" style="width: 95px; font-size: 12px; padding: 6px;">
+                <option value="10">+10м</option>
+                <option value="30">+30м</option>
+                <option value="60">+1ч</option>
+              </select>
+
+              <button type="button" class="republish-btn btn-success"
+                style="font-size: 11px; padding: 6px 12px; white-space: nowrap;">
+                <i class="fa-solid fa-plus"></i> Продлить
+              </button>
+
+              <button type="button" class="delete-btn btn-danger" style="padding: 6px 10px; font-size: 11px;">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+
+            <small style="color: var(--text-secondary); display: block; font-size: 10px; padding-left: 2px;">
+              <i class="fa-solid fa-clock"></i> Действует до: <span class="expires-iso">{{ a.expiresAt or '—' }}</span>
+              {% if a.expiresAt %}
+              (осталось: <span class="expires-left" data-expires="{{ a.expiresAt }}"></span>)
+              {% endif %}
+            </small>
+          </div>
+          {% endfor %}
+          {% else %}
+          <p id="no-published" style="text-align: center; color: var(--text-muted); padding: 40px;">Нет опубликованных
+            действий</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="/static/js/world.js"></script>
-
+<script src="/static/js/events.js"></script>
 <script>
-  // Вкладки
+  // Вкладки с сохранением состояния
   const worldTabButtons = document.querySelectorAll('.tab-button');
   const worldTabContents = document.querySelectorAll('.tab-content');
 
+  function activateTab(tabId) {
+    if (!tabId) return;
+
+    // Deactivate all
+    worldTabButtons.forEach(btn => btn.classList.remove('active'));
+    worldTabContents.forEach(content => content.classList.remove('active'));
+
+    // Activate target
+    const targetBtn = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+    const targetContent = document.getElementById(`tab-${tabId}`);
+
+    if (targetBtn && targetContent) {
+      targetBtn.classList.add('active');
+      targetContent.classList.add('active');
+      localStorage.setItem('world_active_tab', tabId);
+
+      // Trigger specific updates
+      if (tabId === 'top10') updateTopActions();
+    }
+  }
+
+  // Click handlers
   worldTabButtons.forEach(button => {
     button.addEventListener('click', () => {
-      worldTabButtons.forEach(btn => btn.classList.remove('active'));
-      worldTabContents.forEach(content => content.classList.remove('active'));
-
-      button.classList.add('active');
       const tabId = button.getAttribute('data-tab');
-      document.getElementById(`tab-${tabId}`).classList.add('active');
+      activateTab(tabId);
     });
+  });
+
+  // Restore state on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedTab = localStorage.getItem('world_active_tab');
+    if (savedTab) {
+      activateTab(savedTab);
+    } else {
+      // Default to top10
+      activateTab('top10');
+    }
   });
 </script>
 {% endblock %}

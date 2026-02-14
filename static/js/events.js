@@ -20,26 +20,26 @@
     };
 
     const res = await fetch(url, opts);
-    
+
     // Пытаемся прочитать JSON-ответ (там может быть текст ошибки)
     let data = {};
-    try { data = await res.json(); } catch {}
+    try { data = await res.json(); } catch { }
 
     if (!res.ok) {
       // ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ:
       // Если сервер прислал сообщение (message), показываем его.
       // Если нет — показываем стандартный статус (Bad Request).
       const errorMsg = data.message || `${res.status} ${res.statusText}`;
-      
+
       notify(errorMsg, 'error');
       throw new Error(errorMsg);
     }
-    
+
     return data;
   }
 
   async function refresh() {
-    const res = await fetch('/api/my-actions', { credentials: 'include' });
+    const res = await fetch('/api/events', { credentials: 'include' });
     const data = await res.json();
     renderDrafts(data.drafts || []);
     renderPublished(data.published || []);
@@ -181,12 +181,12 @@
     const text = input.value.trim();
     if (!text) return;
     try {
-      const data = await post('/api/my-actions/new', { text });
+      const data = await post('/api/events/new', { text });
       if (data?.message) notify(data.message, data.ok ? 'success' : 'error');
       else notify('Действие создано');
       input.value = '';
       await refresh();
-    } catch {}
+    } catch { }
   });
 
   // делегирование кликов в блоке черновиков
@@ -200,18 +200,18 @@
       try {
         await post(`/api/my-actions/delete/${id}`);
         await refresh();
-      } catch {}
+      } catch { }
     }
 
     if (e.target.classList.contains('publish-btn')) {
       const sel = item.querySelector('.duration');
       const duration = Number(sel?.value || 10);
       try {
-        await post('/api/my-actions/publish', { id, duration });
+        await post('/api/events/publish', { id, duration });
         notify('Опубликовано');
-        try { localStorage.setItem('MYA_PING', String(Date.now())); } catch {}
+        try { localStorage.setItem('EVENTS_PING', String(Date.now())); } catch { }
         await refresh();
-      } catch {}
+      } catch { }
     }
   });
 
@@ -226,7 +226,7 @@
       try {
         await post(`/api/my-actions/delete/${id}`);
         await refresh();
-      } catch {}
+      } catch { }
     }
 
     if (e.target.classList.contains('republish-btn')) {
@@ -242,9 +242,9 @@
       const originalDisabled = e.target.disabled;
       e.target.disabled = true;
       try {
-        await post('/api/my-actions/publish', { id, duration });
+        await post('/api/events/publish', { id, duration });
         notify('Опубликовано снова');
-        try { localStorage.setItem('MYA_PING', String(Date.now())); } catch {}
+        try { localStorage.setItem('EVENTS_PING', String(Date.now())); } catch { }
         await refresh();
       } catch {
         notify('Не удалось опубликовать', 'error');
@@ -256,12 +256,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     // realtime
     if (window.socket) {
-      window.socket.off('my-actions:changed');
-      window.socket.on('my-actions:changed', refresh);
+      window.socket.off('events:changed');
+      window.socket.on('events:changed', refresh);
     }
-    // cross-tab ping (world.js дергает MYA_PING)
+    // cross-tab ping (world.js дергает EVENTS_PING)
     window.addEventListener('storage', (e) => {
-      if (e.key === 'MYA_PING') refresh();
+      if (e.key === 'EVENTS_PING') refresh();
     });
     ensureTimer();
     refresh();

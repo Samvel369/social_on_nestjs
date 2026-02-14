@@ -8,7 +8,7 @@ import { LocalsUserInterceptor } from './common/interceptors/locals-user.interce
 import { AuthModule } from './modules/auth/auth.module';
 import { ActionsModule } from './modules/actions/actions.module';
 import { FriendsModule } from './modules/friends/friends.module';
-import { MyActionsModule } from './modules/my-actions/my-actions.module';
+import { EventsModule } from './modules/events/events.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { WorldModule } from './modules/world/world.module';
 import { MainModule } from './modules/main/main.module';
@@ -20,7 +20,7 @@ import { ChatModule } from './modules/chat/chat.module';
     AuthModule,
     ActionsModule,
     FriendsModule,
-    MyActionsModule,
+    EventsModule,
     ProfileModule,
     WorldModule,
     MainModule,
@@ -34,4 +34,4 @@ import { ChatModule } from './modules/chat/chat.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

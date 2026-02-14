@@ -9,28 +9,28 @@ import {
   UseGuards,
   Render,
 } from '@nestjs/common';
-import { MyActionsService } from './my-actions.service';
+import { EventsService } from './events.service';
 import { PrismaService } from '../../prisma/prisma.service'; // 🔥
-import { CreateActionDto, PublishActionDto, DeleteActionDto } from './my-actions.dto';
+import { CreateActionDto, PublishActionDto, DeleteActionDto } from './events.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { CurrentUser, AuthUser } from '../../common/decorators/current-user.decorator';
 import { getDisplayName } from '../../common/utils/user.utils';
 
 @UseGuards(JwtAuthGuard)
-@Controller('my-actions')
-export class MyActionsController {
+@Controller('events')
+export class EventsController {
   constructor(
-    private readonly service: MyActionsService,
+    private readonly service: EventsService,
     private readonly prisma: PrismaService // 🔥
-  ) {}
+  ) { }
 
   // HTML
   @Get('view')
-  @Render('my_actions.html')
+  @Render('events.html')
   async view(@CurrentUser() user: AuthUser) {
     // 🔥 Формируем current_user с именем
     const me = await this.prisma.user.findUnique({ where: { id: user.userId } });
-    
+
     const current_user = me ? {
       id: me.id,
       userId: me.id,
