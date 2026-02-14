@@ -254,6 +254,44 @@ export class WorldService {
 
     const counts = await this.getDailyCountsMap();
     this.rt.emitToAll('daily:counts_update', { counts });
+
+    // 🔥 NEW LOGIC: Time Window (1 minute) for Mutual "Moments" (Daily Actions)
+    console.log(`[MarkDailyAction] User ${userId} marked daily action ${dailyActionId} at ${now.toISOString()}`);
+    const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+
+    const matches = await this.prisma.dailyActionMark.findMany({
+      where: {
+        dailyActionId,
+        userId: { not: userId },
+        createdAt: { gte: oneMinuteAgo },
+      },
+      select: { userId: true },
+    });
+
+    console.log(`[MarkDailyAction] Found ${matches.length} matches in the last minute:`, matches);
+
+    if (matches.length > 0) {
+      const matchIds = [...new Set(matches.map(m => m.userId))];
+
+      for (const otherUserId of matchIds) {
+        console.log(`[MarkDailyAction] Linking User ${userId} to User ${otherUserId} (Forward-Only)`);
+
+        // 1. "They see Me" (because I joined their window)
+        // viewer: otherUserId (The one who started the window), user: userId (Me, the one who joined)
+        await this.prisma.potentialFriendView.upsert({
+          where: { viewerId_userId: { viewerId: otherUserId, userId } },
+          update: { timestamp: now },
+          create: { viewerId: otherUserId, userId, timestamp: now },
+        });
+
+        // NOT doing "I see Them" anymore. My window just started.
+
+        // Notify only the list owner
+        this.rt.emitToUser(otherUserId, 'friends:lists:refresh');
+      }
+      // No need to notify myself, as my list didn't change
+    }
+
     return { success: true, counts };
   }
 

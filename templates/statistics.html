@@ -12,65 +12,131 @@
     </p>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+<div class="tabs-container">
+    <div class="tabs-header">
+        <button class="tab-button active" data-tab="overview">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Обзор</span>
+        </button>
+        <button class="tab-button" data-tab="detailed">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Подробно</span>
+        </button>
+    </div>
 
-    <!-- Card 1: Actions Created -->
-    <div
-        style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
-        <div
-            style="width: 60px; height: 60px; background: rgba(52, 152, 219, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <i class="fa-solid fa-bolt" style="font-size: 28px; color: #3498db;"></i>
+    <!-- ТАБ: ОБЗОР -->
+    <div class="tab-content active" id="tab-overview">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+
+            <!-- Card 1: Actions Created -->
+            <div
+                style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="width: 60px; height: 60px; background: rgba(52, 152, 219, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-bolt" style="font-size: 28px; color: #3498db;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.actionsCreated
+                        }}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">Создано действий</div>
+                </div>
+            </div>
+
+            <!-- Card 2: Validations Received -->
+            <div
+                style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-check-double" style="font-size: 28px; color: #2ecc71;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.marksReceived
+                        }}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">Получено отметок</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Validations Given -->
+            <div
+                style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="width: 60px; height: 60px; background: rgba(243, 156, 18, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-hand-holding-heart" style="font-size: 28px; color: #f39c12;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.marksGiven }}
+                    </div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">Поставлено отметок</div>
+                </div>
+            </div>
+
+            <!-- Card 4: Profile Views -->
+            <div
+                style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="width: 60px; height: 60px; background: rgba(155, 89, 182, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-eye" style="font-size: 28px; color: #9b59b6;"></i>
+                </div>
+                <div>
+                    <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.profileViews
+                        }}</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">Просмотров профиля</div>
+                </div>
+            </div>
+
         </div>
-        <div>
-            <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.actionsCreated }}</div>
-            <div style="font-size: 14px; color: var(--text-secondary);">Создано действий</div>
+
+        <div
+            style="margin-top: 40px; padding: 24px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-color); text-align: center;">
+            <p style="color: var(--text-muted); margin: 0;">Статистика обновляется в реальном времени при перезагрузке
+                страницы.
+            </p>
         </div>
     </div>
 
-    <!-- Card 2: Validations Received -->
-    <div
-        style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
-        <div
-            style="width: 60px; height: 60px; background: rgba(46, 204, 113, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <i class="fa-solid fa-check-double" style="font-size: 28px; color: #2ecc71;"></i>
-        </div>
-        <div>
-            <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.marksReceived }}</div>
-            <div style="font-size: 14px; color: var(--text-secondary);">Получено отметок</div>
+    <!-- ТАБ: ПОДРОБНО (Пустой) -->
+    <div class="tab-content" id="tab-detailed">
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <i class="fa-solid fa-person-digging" style="font-size: 48px; margin-bottom: 20px;"></i>
+            <h3>Раздел в разработке</h3>
+            <p>Здесь будет подробная статистика.</p>
         </div>
     </div>
-
-    <!-- Card 3: Validations Given -->
-    <div
-        style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
-        <div
-            style="width: 60px; height: 60px; background: rgba(243, 156, 18, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <i class="fa-solid fa-hand-holding-heart" style="font-size: 28px; color: #f39c12;"></i>
-        </div>
-        <div>
-            <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.marksGiven }}</div>
-            <div style="font-size: 14px; color: var(--text-secondary);">Поставлено отметок</div>
-        </div>
-    </div>
-
-    <!-- Card 4: Profile Views -->
-    <div
-        style="background: var(--bg-card); padding: 24px; border-radius: var(--radius-lg); border: 2px solid var(--border-color); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 20px;">
-        <div
-            style="width: 60px; height: 60px; background: rgba(155, 89, 182, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-            <i class="fa-solid fa-eye" style="font-size: 28px; color: #9b59b6;"></i>
-        </div>
-        <div>
-            <div style="font-size: 32px; font-weight: 800; color: var(--text-primary);">{{ stats.profileViews }}</div>
-            <div style="font-size: 14px; color: var(--text-secondary);">Просмотров профиля</div>
-        </div>
-    </div>
-
 </div>
 
-<div
-    style="margin-top: 40px; padding: 24px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px dashed var(--border-color); text-align: center;">
-    <p style="color: var(--text-muted); margin: 0;">Статистика обновляется в реальном времени при перезагрузке страницы.
-    </p>
-</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tabs = document.querySelectorAll('.tab-button');
+        const contents = document.querySelectorAll('.tab-content');
+
+        // Restore active tab
+        const savedTab = localStorage.getItem('stats_active_tab') || 'overview';
+        if (savedTab) {
+            activateTab(savedTab);
+        }
+
+        tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                activateTab(tabId);
+                localStorage.setItem('stats_active_tab', tabId);
+            });
+        });
+
+        function activateTab(tabId) {
+            // Deactivate all
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+
+            // Activate specific
+            const btn = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+            const content = document.getElementById(`tab-${tabId}`);
+
+            if (btn && content) {
+                btn.classList.add('active');
+                content.classList.add('active');
+            }
+        }
+    });
+</script>
 {% endblock %}

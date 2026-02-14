@@ -16,14 +16,17 @@
     <button class="tab-button active" data-tab="possible">
       <i class="fa-solid fa-user-group"></i>
       <span>Возможные</span>
+      <span class="tab-badge" id="badge-possible" style="display: none;">0</span>
     </button>
     <button class="tab-button" data-tab="incoming">
       <i class="fa-solid fa-inbox"></i>
       <span>Входящие</span>
+      <span class="tab-badge" id="badge-incoming" style="display: none;">0</span>
     </button>
     <button class="tab-button" data-tab="outgoing">
       <i class="fa-solid fa-paper-plane"></i>
       <span>Исходящие</span>
+      <span class="tab-badge" id="badge-outgoing" style="display: none;">0</span>
     </button>
     <button class="tab-button" data-tab="friends">
       <i class="fa-solid fa-heart"></i>
@@ -40,10 +43,11 @@
   </div>
 
   <!-- Содержимое вкладок -->
-  
+
   <!-- Возможные друзья -->
   <div class="tab-content active" id="tab-possible">
-    <div style="display: inline-flex; align-items: center; gap: 16px; padding: 16px 24px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 24px;">
+    <div
+      style="display: inline-flex; align-items: center; gap: 16px; padding: 16px 24px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 24px;">
       <label style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
         <i class="fa-solid fa-clock" style="color: var(--accent-pulse);"></i>
         Удалять через:
@@ -51,9 +55,9 @@
       <select id="cleanup-time" style="min-width: 150px;">
         <option value="1">1 мин (тест)</option>
         <option value="5">5 мин</option>
-        <option value="10" {% if keep_minutes == 10 %}selected{% endif %}>10 мин</option>
-        <option value="30" {% if keep_minutes == 30 %}selected{% endif %}>30 мин</option>
-        <option value="60" {% if keep_minutes == 60 %}selected{% endif %}>1 час</option>
+        <option value="10" {% if keep_minutes==10 %}selected{% endif %}>10 мин</option>
+        <option value="30" {% if keep_minutes==30 %}selected{% endif %}>30 мин</option>
+        <option value="60" {% if keep_minutes==60 %}selected{% endif %}>1 час</option>
       </select>
     </div>
     <div id="possible-friends-list">
@@ -114,6 +118,9 @@
       button.classList.add('active');
       const tabId = button.getAttribute('data-tab');
       document.getElementById(`tab-${tabId}`).classList.add('active');
+
+      // Обновляем бейджи (скрываем у активной)
+      if (window.updateBadges) window.updateBadges();
     });
   });
 
@@ -121,7 +128,7 @@
   function runCleanup() {
     const container = document.getElementById('possible-friends-list');
     const select = document.getElementById('cleanup-time');
-    
+
     if (!container || !select) return;
 
     const now = new Date().getTime();
@@ -144,8 +151,8 @@
         if (timeAgoEl) {
           const minutes = Math.floor(ageMs / 60000);
           const seconds = Math.floor((ageMs % 60000) / 1000);
-          timeAgoEl.textContent = minutes > 0 
-            ? `${minutes} мин назад` 
+          timeAgoEl.textContent = minutes > 0
+            ? `${minutes} мин назад`
             : `${seconds} сек назад`;
         }
       }

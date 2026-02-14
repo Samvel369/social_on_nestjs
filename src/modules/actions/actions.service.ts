@@ -7,19 +7,19 @@ export class ActionsService {
   constructor(
     private prisma: PrismaService,
     private rt: RealtimeGateway,
-  ) {}
+  ) { }
 
   // Данные для карточки действия
   async getActionCard(actionId: number) {
     // 1. Ищем действие (ВАЖНО: добавляем publishCount в выборку)
     const action = await this.prisma.action.findUnique({
       where: { id: actionId },
-      select: { 
-        id: true, 
-        text: true, 
-        userId: true, 
-        isPublished: true, 
-        createdAt: true, 
+      select: {
+        id: true,
+        text: true,
+        userId: true,
+        isPublished: true,
+        createdAt: true,
         expiresAt: true,
         publishCount: true // <--- Забираем счетчик публикаций
       },
@@ -27,12 +27,12 @@ export class ActionsService {
 
     // Если нет действия — возвращаем пустышку
     if (!action) {
-      return { 
-        action: null, 
-        total_marks: 0, 
-        users: [], 
-        peak: 0, 
-        stats: { totalMarks: 0, uniqueUsers: 0, peakCount: 0 } 
+      return {
+        action: null,
+        total_marks: 0,
+        users: [],
+        peak: 0,
+        stats: { totalMarks: 0, uniqueUsers: 0, peakCount: 0 }
       };
     }
 
@@ -45,13 +45,13 @@ export class ActionsService {
 
     // 3. Считаем уникальных пользователей
     const userIds = Array.from(new Set(marks.map(m => m.userId)));
-    
+
     // Загружаем имена пользователей для списка
     const users = userIds.length
       ? await this.prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, username: true },
-        })
+        where: { id: { in: userIds } },
+        select: { id: true, username: true },
+      })
       : [];
 
     // 4. Считаем пик активности (по минутам)
@@ -71,11 +71,11 @@ export class ActionsService {
       peakCount: peak,
     };
 
-    return { 
-      action, 
-      total_marks: marks.length, 
-      users, 
-      peak, 
+    return {
+      action,
+      total_marks: marks.length,
+      users,
+      peak,
       stats // <--- Теперь он есть!
     };
   }
@@ -98,19 +98,44 @@ export class ActionsService {
 
     await this.prisma.actionMark.create({ data: { userId, actionId, timestamp: now } });
 
-    const action = await this.prisma.action.findUnique({
-      where: { id: actionId },
+    // 🔥 NEW LOGIC: Time Window (1 minute) for Mutual "Moments"
+    console.log(`[MarkAction] User ${userId} marked action ${actionId} at ${now.toISOString()}`);
+
+    // Find others who marked this action within the last 60 seconds
+    const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+
+    // Find matches (excluding self)
+    const matches = await this.prisma.actionMark.findMany({
+      where: {
+        actionId,
+        userId: { not: userId },
+        timestamp: { gte: oneMinuteAgo },
+      },
       select: { userId: true },
     });
 
-    if (action && action.userId !== userId) {
-      const ownerId = action.userId!;
-      await this.prisma.potentialFriendView.upsert({
-        where:  { viewerId_userId: { viewerId: ownerId, userId } },
-        update: { timestamp: now },
-        create: { viewerId: ownerId, userId, timestamp: now },
-      });
-      this.rt.emitToUser(ownerId, 'friends:lists:refresh');
+    console.log(`[MarkAction] Found ${matches.length} matches in the last minute:`, matches);
+
+    // Create mutual links
+    if (matches.length > 0) {
+      const matchIds = [...new Set(matches.map(m => m.userId))];
+
+      for (const otherUserId of matchIds) {
+        console.log(`[MarkAction] Linking User ${userId} to User ${otherUserId} (Forward-Only)`);
+
+        // 1. "They see Me" (because I joined their window)
+        // viewer: otherUserId (The one who started the window), user: userId (Me, the one who joined)
+        await this.prisma.potentialFriendView.upsert({
+          where: { viewerId_userId: { viewerId: otherUserId, userId } },
+          update: { timestamp: now },
+          create: { viewerId: otherUserId, userId, timestamp: now },
+        });
+
+        // NOT doing "I see Them" anymore. My window just started.
+
+        // Notify only the list owner (The one who sees me)
+        this.rt.emitToUser(otherUserId, 'friends:lists:refresh');
+      }
     }
 
     return { success: true };
@@ -157,9 +182,9 @@ export class ActionsService {
 
     const users = userIds.length
       ? await this.prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { username: true },
-        })
+        where: { id: { in: userIds } },
+        select: { username: true },
+      })
       : [];
 
     // Здесь JS ждет total_marks, peak и users (массив строк или объектов)
