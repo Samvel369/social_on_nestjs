@@ -161,6 +161,8 @@
                     default(0) }}</span></p>
             <p><strong><i class="fa-solid fa-circle" style="color:#28a745; font-size:10px;"></i> Онлайн:</strong> <span
                     id="online-users">{{ online_users | default(0) }}</span></p>
+            <p><strong><i class="fa-solid fa-heart" style="color: var(--accent-moment);"></i> Life:</strong> <span
+                    id="user-life-balance">{{ current_user.lifeBalance | default(0) }}</span></p>
         </div>
     </div>
 

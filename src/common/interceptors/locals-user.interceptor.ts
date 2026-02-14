@@ -38,6 +38,7 @@ export class LocalsUserInterceptor implements NestInterceptor {
           userId: u.userId ?? u.id,
           username: u.username,
           avatar_url: u.avatarUrl ?? '',
+          lifeBalance: u.lifeBalance ?? 0,
         };
 
         const userId = u.userId ?? u.id;
